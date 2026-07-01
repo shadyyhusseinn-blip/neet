@@ -1,0 +1,28 @@
+{
+  "name": "شادي حسين للتصوير",
+  "short_name": "شادي حسين",
+  "description": "مصور محترف متخصص في تصوير الأفراح والمناسبات",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050508",
+  "theme_color": "#8b5cf6",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["photography", "business"],
+  "lang": "ar",
+  "dir": "rtl"
+}
