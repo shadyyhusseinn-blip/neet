@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Play, X, Camera } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 
 interface VideoIntroProps {
   videoUrl?: string;

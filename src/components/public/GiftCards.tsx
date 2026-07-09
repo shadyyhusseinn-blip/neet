@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Gift, CreditCard, Mail, Download } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 
 interface GiftCardAmount {
   value: number;

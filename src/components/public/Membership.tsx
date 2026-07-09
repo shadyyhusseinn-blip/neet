@@ -1,6 +1,6 @@
 import React from 'react';
 import { Crown, Check, Star } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 
 interface MembershipTier {
   id: string;
