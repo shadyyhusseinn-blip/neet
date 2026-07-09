@@ -3,6 +3,8 @@ import { motion } from 'motion/react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Package } from '../../types';
 import { Calendar, Phone, Mail, MapPin, Clock, ArrowRight, CheckCircle, User } from 'lucide-react';
+import { firebaseService } from '../../services/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 // Mock packages for fallback
 const mockPackages: Package[] = [
@@ -59,27 +61,42 @@ export default function BookNowPage() {
     setSubmitting(true);
 
     try {
-      // TODO: Integrate with Firestore when ready
-      // For now, just show success message and redirect to payment
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Save booking to Firestore
+      const db = firebaseService.getDB();
+      if (!db) {
+        throw new Error('Firebase not initialized');
+      }
+
+      const bookingData = {
+        clientName: formData.fullName,
+        phone: formData.phone,
+        email: formData.email,
+        eventType: formData.eventType,
+        eventDate: formData.eventDate,
+        location: formData.location,
+        notes: formData.additionalDetails,
+        packageId: selectedPackage,
+        packageName: selectedPackage ? packages.find(p => p.id === selectedPackage)?.name || '' : '',
+        totalPrice: selectedPackage ? packages.find(p => p.id === selectedPackage)?.price || 0 : 0,
+        status: 'pending',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+
+      const bookingRef = await addDoc(collection(db, 'bookings'), bookingData);
+      console.log('Booking saved with ID:', bookingRef.id);
       
       // Navigate to payment page with booking data
       navigate('/payment', { 
         state: { 
           bookingData: {
-            packageName: selectedPackage ? packages.find(p => p.id === selectedPackage)?.name || '' : '',
-            totalPrice: selectedPackage ? packages.find(p => p.id === selectedPackage)?.price || 0 : 0,
-            clientName: formData.fullName,
-            phone: formData.phone,
-            email: formData.email,
-            eventType: formData.eventType,
-            eventDate: formData.eventDate,
-            location: formData.location,
-            notes: formData.additionalDetails,
+            ...bookingData,
+            id: bookingRef.id
           }
         } 
       });
     } catch (error) {
+      console.error('Error saving booking:', error);
       alert('❌ حدث خطأ: ' + (error as Error).message);
     } finally {
       setSubmitting(false);

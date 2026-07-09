@@ -1,26 +1,31 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject, listAll } from 'firebase/storage';
-import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User as FirebaseUser, Auth } from 'firebase/auth';
+import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, onSnapshot, serverTimestamp, Firestore, WhereFilterOp } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject, listAll, FirebaseStorage } from 'firebase/storage';
+import { getFunctions, Functions } from 'firebase/functions';
 
-// Firebase configuration
+// Firebase configuration - MUST be set in environment variables
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDohLDuQCqqJchYQnNbAV_-gWIMq3IgW8o",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "photography-shady-program.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "photography-shady-program",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "photography-shady-program.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "1025301565267",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:1025301565267:web:0a9335f5acc4855d92dba6",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-NVGRWW8K9V"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
+// Validate required environment variables
+if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+  throw new Error('Missing required Firebase environment variables. Please check your .env file.');
+}
+
 class FirebaseService {
-  private app: any = null;
-  private auth: any = null;
-  private db: any = null;
-  private storage: any = null;
-  private functions: any = null;
+  private app: FirebaseApp | null = null;
+  private auth: Auth | null = null;
+  private db: Firestore | null = null;
+  private storage: FirebaseStorage | null = null;
+  private functions: Functions | null = null;
   private isInitialized = false;
 
   initialize(): Promise<void> {
@@ -51,25 +56,36 @@ class FirebaseService {
     return this.isInitialized;
   }
 
-  getAuth() {
-    return this.auth;
+  private ensureInitialized(): void {
+    if (!this.isInitialized) {
+      throw new Error('Firebase is not initialized. Call initialize() first.');
+    }
   }
 
-  getDB() {
-    return this.db;
+  getAuth(): Auth {
+    this.ensureInitialized();
+    return this.auth!;
   }
 
-  getStorage() {
-    return this.storage;
+  getDB(): Firestore {
+    this.ensureInitialized();
+    return this.db!;
   }
 
-  getFunctions() {
-    return this.functions;
+  getStorage(): FirebaseStorage {
+    this.ensureInitialized();
+    return this.storage!;
+  }
+
+  getFunctions(): Functions {
+    this.ensureInitialized();
+    return this.functions!;
   }
 
   async signInWithEmailAndPassword(email: string, password: string): Promise<FirebaseUser | null> {
     try {
-      const userCredential = await signInWithEmailAndPassword(this.auth, email, password);
+      const auth = this.getAuth();
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
       return userCredential.user;
     } catch (error: any) {
       console.error('Sign in error:', error);
@@ -79,8 +95,9 @@ class FirebaseService {
 
   async signInWithGoogle(): Promise<FirebaseUser | null> {
     try {
+      const auth = this.getAuth();
       const provider = new GoogleAuthProvider();
-      const userCredential = await signInWithPopup(this.auth, provider);
+      const userCredential = await signInWithPopup(auth, provider);
       return userCredential.user;
     } catch (error: any) {
       console.error('Google sign in error:', error);
@@ -90,7 +107,8 @@ class FirebaseService {
 
   async signOut(): Promise<void> {
     try {
-      await signOut(this.auth);
+      const auth = this.getAuth();
+      await signOut(auth);
     } catch (error) {
       console.error('Sign out error:', error);
       throw error;
@@ -98,82 +116,91 @@ class FirebaseService {
   }
 
   onAuthStateChanged(callback: (user: FirebaseUser | null) => void) {
-    return onAuthStateChanged(this.auth, callback);
+    const auth = this.getAuth();
+    return onAuthStateChanged(auth, callback);
   }
 
   // Firestore helpers
-  async getDocument(collectionName: string, docId: string): Promise<any> {
-    const docRef = doc(this.db, collectionName, docId);
+  async getDocument<T = Record<string, unknown>>(collectionName: string, docId: string): Promise<T | null> {
+    const db = this.getDB();
+    const docRef = doc(db, collectionName, docId);
     const docSnap = await getDoc(docRef);
-    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
+    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as T : null;
   }
 
-  async setDocument(collectionName: string, docId: string, data: any): Promise<void> {
-    const docRef = doc(this.db, collectionName, docId);
+  async setDocument<T = Record<string, unknown>>(collectionName: string, docId: string, data: T): Promise<void> {
+    const db = this.getDB();
+    const docRef = doc(db, collectionName, docId);
     await setDoc(docRef, { ...data, updatedAt: serverTimestamp() }, { merge: true });
   }
 
-  async updateDocument(collectionName: string, docId: string, data: any): Promise<void> {
-    const docRef = doc(this.db, collectionName, docId);
+  async updateDocument<T = Record<string, unknown>>(collectionName: string, docId: string, data: Partial<T>): Promise<void> {
+    const db = this.getDB();
+    const docRef = doc(db, collectionName, docId);
     await updateDoc(docRef, { ...data, updatedAt: serverTimestamp() });
   }
 
   async deleteDocument(collectionName: string, docId: string): Promise<void> {
-    const docRef = doc(this.db, collectionName, docId);
+    const db = this.getDB();
+    const docRef = doc(db, collectionName, docId);
     await deleteDoc(docRef);
   }
 
-  async getCollection(collectionName: string): Promise<any[]> {
-    const collectionRef = collection(this.db, collectionName);
+  async getCollection<T = Record<string, unknown>>(collectionName: string): Promise<T[]> {
+    const db = this.getDB();
+    const collectionRef = collection(db, collectionName);
     const querySnapshot = await getDocs(collectionRef);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
   }
 
-  async queryCollection(collectionName: string, field: string, operator: any, value: any): Promise<any[]> {
-    const collectionRef = collection(this.db, collectionName);
+  async queryCollection<T = Record<string, unknown>>(collectionName: string, field: string, operator: WhereFilterOp, value: unknown): Promise<T[]> {
+    const db = this.getDB();
+    const collectionRef = collection(db, collectionName);
     const q = query(collectionRef, where(field, operator, value));
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
   }
 
-  onCollectionSnapshot(collectionName: string, callback: (docs: any[]) => void) {
-    if (!this.db) {
-      console.error('❌ Firestore DB is not initialized');
-      return () => {};
-    }
-    const collectionRef = collection(this.db, collectionName);
+  onCollectionSnapshot<T = Record<string, unknown>>(collectionName: string, callback: (docs: T[]) => void) {
+    const db = this.getDB();
+    const collectionRef = collection(db, collectionName);
     return onSnapshot(collectionRef, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
       callback(docs);
     });
   }
 
-  onDocumentSnapshot(collectionName: string, docId: string, callback: (doc: any) => void) {
-    const docRef = doc(this.db, collectionName, docId);
+  onDocumentSnapshot<T = Record<string, unknown>>(collectionName: string, docId: string, callback: (doc: T | null) => void) {
+    const db = this.getDB();
+    const docRef = doc(db, collectionName, docId);
     return onSnapshot(docRef, (doc) => {
-      callback(doc.exists() ? { id: doc.id, ...doc.data() } : null);
+      callback(doc.exists() ? { id: doc.id, ...doc.data() } as T : null);
     });
   }
 
   // Storage helpers
   async uploadFile(path: string, file: File): Promise<string> {
-    const storageRef = ref(this.storage, path);
+    const storage = this.getStorage();
+    const storageRef = ref(storage, path);
     await uploadBytes(storageRef, file);
     return getDownloadURL(storageRef);
   }
 
   async getDownloadURL(path: string): Promise<string> {
-    const storageRef = ref(this.storage, path);
+    const storage = this.getStorage();
+    const storageRef = ref(storage, path);
     return getDownloadURL(storageRef);
   }
 
   async deleteFile(path: string): Promise<void> {
-    const storageRef = ref(this.storage, path);
+    const storage = this.getStorage();
+    const storageRef = ref(storage, path);
     await deleteObject(storageRef);
   }
 
-  async listFiles(path: string): Promise<any[]> {
-    const storageRef = ref(this.storage, path);
+  async listFiles(path: string): Promise<{ name: string; fullPath: string }[]> {
+    const storage = this.getStorage();
+    const storageRef = ref(storage, path);
     const result = await listAll(storageRef);
     return result.items.map(item => ({
       name: item.name,

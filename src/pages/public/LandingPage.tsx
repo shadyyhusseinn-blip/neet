@@ -2,6 +2,11 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Camera, Heart, Award, Users, Star, Eye, Phone, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import VideoIntro from '../../components/public/VideoIntro';
+import Membership from '../../components/public/Membership';
+import GiftCards from '../../components/public/GiftCards';
+import InstagramFeed from '../../components/public/InstagramFeed';
+import WeatherWidget from '../../components/public/WeatherWidget';
 
 const STATS = [
   { icon: Heart, value: '500+', label: 'زفاف ناجح', color: 'text-pink-400', bg: 'from-pink-500/20 to-pink-600/20' },
@@ -246,6 +251,24 @@ export default function LandingPage() {
           </motion.button>
         </motion.div>
       </div>
+
+      {/* Video Intro Section */}
+      <VideoIntro
+        title="اكتشف عالمنا"
+        description="شاهد الفيديو التعريفي عن استوديو التصوير الخاص بنا"
+      />
+
+      {/* Membership Section */}
+      <Membership />
+
+      {/* Gift Cards Section */}
+      <GiftCards />
+
+      {/* Instagram Feed Section */}
+      <InstagramFeed username="@shadyhussein" />
+
+      {/* Weather Widget Section */}
+      <WeatherWidget location="القاهرة" />
 
       <div className="fixed bottom-0 left-0 right-0 bg-black/80 backdrop-blur-2xl border-t border-white/10 z-50">
         <div className="max-w-7xl mx-auto px-4 py-3">

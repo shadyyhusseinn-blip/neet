@@ -87,18 +87,33 @@ export default function BookingInvoice({ booking, studioInfo }: BookingInvoicePr
 
   const printInvoice = () => {
     if (!invoiceRef.current) return;
-    const printContent = invoiceRef.current.innerHTML;
-    const originalContent = document.body.innerHTML;
-
-    document.body.innerHTML = `
-      <div style="direction: rtl; font-family: 'Cairo', 'Tajawal', sans-serif; padding: 20px;">
-        ${printContent}
-      </div>
+    
+    // Use CSS print media for safer printing
+    const printStyles = document.createElement('style');
+    printStyles.textContent = `
+      @media print {
+        body > *:not(.print-container) {
+          display: none !important;
+        }
+        .print-container {
+          display: block !important;
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+        }
+      }
     `;
-
+    document.head.appendChild(printStyles);
+    
+    // Add print class to invoice
+    invoiceRef.current.classList.add('print-container');
+    
     window.print();
-    document.body.innerHTML = originalContent;
-    window.location.reload();
+    
+    // Cleanup
+    document.head.removeChild(printStyles);
+    invoiceRef.current.classList.remove('print-container');
   };
 
   return (

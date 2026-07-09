@@ -1,5 +1,7 @@
 import { getMessaging, getToken, onMessage, MessagePayload } from 'firebase/messaging';
 import { firebaseService } from './firebase';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { useAuthStore } from '../stores/authStore';
 
 class NotificationService {
   private messaging: any = null;
@@ -73,8 +75,30 @@ class NotificationService {
   }
 
   private async sendTokenToServer(token: string): Promise<void> {
-    // TODO: Implement token sending to server
-    console.log('Sending token to server:', token);
+    try {
+      const authStore = useAuthStore.getState();
+      const user = authStore.user;
+      
+      if (!user) {
+        console.warn('User not authenticated, cannot save FCM token');
+        return;
+      }
+
+      const db = firebaseService.getDB();
+      if (!db) {
+        throw new Error('Firebase not initialized');
+      }
+
+      // Save FCM token to user document
+      await setDoc(doc(db, 'users', user.id), {
+        fcmToken: token,
+        fcmTokenUpdatedAt: serverTimestamp()
+      }, { merge: true });
+
+      console.log('✅ FCM token saved to Firestore for user:', user.id);
+    } catch (error) {
+      console.error('❌ Error saving FCM token to server:', error);
+    }
   }
 
   private listenForMessages(): void {

@@ -1,36 +1,13 @@
 import {
-  LayoutDashboard,
   Archive,
-  Globe,
-  Code,
   Camera,
   PanelRightClose,
   PanelRightOpen,
   Menu,
   X,
-  BarChart3,
-  MessageSquare,
-  Send,
   Package,
   Users,
-  Calendar,
-  CheckSquare,
-  Users as CRMIcon,
-  CreditCard,
-  Mail,
-  Shield,
-  Database,
-  FileText,
-  MessageCircle,
-  Calendar as EventIcon,
-  Share2,
-  Cloud,
-  MessageSquare as SMSIcon,
-  TrendingUp,
-  Languages,
-  DollarSign,
   Star,
-  Settings,
 } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
@@ -39,45 +16,14 @@ import { cn } from '../../lib/utils';
 import { audioService } from '../../services/audio';
 
 const NAV_ITEMS = [
-  // الرئيسية
-  { id: 'home', label: 'الرئيسية', icon: LayoutDashboard, path: '/admin', section: 'main' },
-  
-  // الأقسام الرئيسية
-  { id: 'bookings', label: 'الحجوزات', icon: Archive, path: '/admin/bookings', section: 'main' },
-  { id: 'galleries', label: 'المعارض', icon: Globe, path: '/admin/galleries', section: 'main' },
-  { id: 'users', label: 'المستخدمين', icon: Users, path: '/admin/users', section: 'main' },
-  { id: 'developer', label: 'المطور', icon: Code, path: '/admin/developer', section: 'main' },
-  { id: 'client-gallery', label: 'معرض العملاء', icon: Camera, path: '/admin/client-gallery', section: 'main' },
-  
-  // الحجوزات - Sub-items
+  // الحجوزات - Main items
   { id: 'new-booking', label: 'حجز جديد', icon: Package, path: '/admin/new-booking', section: 'bookings' },
   { id: 'bookings-accounts', label: 'حسابات الحجوزات', icon: Users, path: '/admin/bookings-accounts', section: 'bookings' },
   { id: 'bookings-management', label: 'إدارة الحجوزات', icon: Archive, path: '/admin/bookings-management', section: 'bookings' },
-  
-  // المعارض - Sub-items
-  { id: 'gallery-editor', label: 'محرر المعرض', icon: Globe, path: '/admin/gallery-editor', section: 'galleries' },
-  { id: 'public-galleries', label: 'المعارض العامة', icon: Globe, path: '/admin/public-galleries', section: 'galleries' },
-  
-  // المستخدمين - Sub-items
-  { id: 'activity', label: 'سجل النشاط', icon: MessageSquare, path: '/admin/activity', section: 'users' },
-  
-  // المطور - Sub-items
-  { id: 'developer-tools', label: 'أدوات المطور', icon: Code, path: '/admin/developer-tools', section: 'developer' },
-  { id: 'developer-management', label: 'إدارة المطور', icon: Code, path: '/admin/developer-management', section: 'developer' },
-  { id: 'firebase', label: 'إعدادات Firebase', icon: Code, path: '/admin/firebase', section: 'developer' },
-  { id: 'backup', label: 'النسخ الاحتياطي', icon: Database, path: '/admin/backup', section: 'developer' },
-  { id: 'editing', label: 'تتبع التعديل', icon: FileText, path: '/admin/editing', section: 'developer' },
-  { id: 'ai', label: 'الذكاء الاصطناعي', icon: Code, path: '/admin/ai', section: 'developer' },
-  { id: 'whatsapp', label: 'واتساب', icon: MessageSquare, path: '/admin/whatsapp', section: 'developer' },
-  { id: 'settings', label: 'الإعدادات', icon: Settings, path: '/admin/settings', section: 'developer' },
 ];
 
 const SECTION_LABELS = {
-  main: 'الرئيسية',
   bookings: 'الحجوزات',
-  galleries: 'المعارض',
-  users: 'المستخدمين',
-  developer: 'المطور',
 };
 
 interface NavItem {
@@ -98,9 +44,8 @@ interface SidebarProps {
   currentUser?: any;
 }
 
-export default function Sidebar({ isOpen, currentView, onNavigate, onToggle, currentUser }: SidebarProps) {
+export default function Sidebar({ isOpen, currentView, onToggle, currentUser }: SidebarProps) {
   const [favorites, setFavorites] = useState<string[]>([]);
-  const [showFavorites, setShowFavorites] = useState(false);
 
   // Load favorites from localStorage
   useEffect(() => {
@@ -116,9 +61,9 @@ export default function Sidebar({ isOpen, currentView, onNavigate, onToggle, cur
   }, [favorites]);
 
   const toggleFavorite = (itemId: string) => {
-    setFavorites(prev => {
+    setFavorites((prev: string[]) => {
       if (prev.includes(itemId)) {
-        return prev.filter(id => id !== itemId);
+        return prev.filter((id: string) => id !== itemId);
       } else {
         return [...prev, itemId];
       }
@@ -234,7 +179,7 @@ export default function Sidebar({ isOpen, currentView, onNavigate, onToggle, cur
                   <span className="relative z-10 flex-1 text-right hidden lg:block">{item.label}</span>
                   {isOpen && (
                     <button
-                      onClick={(e) => {
+                      onClick={(e: React.MouseEvent) => {
                         e.preventDefault();
                         toggleFavorite(item.id);
                       }}
@@ -293,7 +238,7 @@ export default function Sidebar({ isOpen, currentView, onNavigate, onToggle, cur
                     <span className="relative z-10 flex-1 text-right hidden lg:block">{item.label}</span>
                     {isOpen && (
                       <button
-                        onClick={(e) => {
+                        onClick={(e: React.MouseEvent) => {
                           e.preventDefault();
                           toggleFavorite(item.id);
                         }}

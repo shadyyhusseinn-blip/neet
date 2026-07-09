@@ -31,7 +31,6 @@ import { statusBadge } from '../../lib/theme';
 import PageLayout from '../../components/layout/PageLayout';
 import SearchInput from '../../components/ui/SearchInput';
 import EmptyState from '../../components/ui/EmptyState';
-import EditBookingModal from './EditBookingModal';
 import { UI } from '../../lib/ui';
 import { useBookings } from '../../hooks/useFirestoreData';
 
@@ -435,13 +434,6 @@ export default function BookingRecords({
           </aside>
         </div>
       </div>
-      {selectedBooking && (
-        <EditBookingModal
-          booking={selectedBooking}
-          onSave={handleBookingSave}
-          onClose={() => setSelectedBooking(null)}
-        />
-      )}
     </PageLayout>
   );
 }
