@@ -351,7 +351,7 @@ export class AnalyticsService {
   }
 
   // Track video play
-  static trackVideoPlay(videoTitle: string, videoUrl: string): void {
+  static trackVideoPlay(videoTitle: string, _videoUrl: string): void {
     this.trackEvent({
       category: 'Video',
       action: 'play',
@@ -360,7 +360,7 @@ export class AnalyticsService {
   }
 
   // Track video complete
-  static trackVideoComplete(videoTitle: string, videoUrl: string): void {
+  static trackVideoComplete(videoTitle: string, _videoUrl: string): void {
     this.trackEvent({
       category: 'Video',
       action: 'complete',

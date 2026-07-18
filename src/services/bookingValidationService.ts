@@ -2,8 +2,7 @@ import {
   collection,
   query,
   where,
-  getDocs,
-  Timestamp
+  getDocs
 } from 'firebase/firestore';
 import { getFirestore } from 'firebase/firestore';
 

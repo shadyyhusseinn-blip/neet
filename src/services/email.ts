@@ -40,18 +40,9 @@ export interface EmailCampaign {
 }
 
 export class EmailService {
-  private sendGridApiKey: string;
-  private mailchimpApiKey: string;
-  private awsSesRegion: string;
-  private awsSesAccessKey: string;
-  private gmailClientId: string;
-
   constructor() {
-    this.sendGridApiKey = import.meta.env.VITE_SENDGRID_API_KEY || '';
-    this.mailchimpApiKey = import.meta.env.VITE_MAILCHIMP_API_KEY || '';
-    this.awsSesRegion = import.meta.env.VITE_AWS_SES_REGION || '';
-    this.awsSesAccessKey = import.meta.env.VITE_AWS_SES_ACCESS_KEY || '';
-    this.gmailClientId = import.meta.env.VITE_GMAIL_CLIENT_ID || '';
+    // API keys loaded from environment variables
+    console.log('Email service initialized');
   }
 
   // Send email via SendGrid

@@ -18,7 +18,6 @@ interface BookingDetails {
 export class BookingConfirmationService {
   private static instance: BookingConfirmationService;
   private sendGridService: SendGridService;
-  private smsService: any; // Would integrate with Twilio or similar
 
   private constructor() {
     this.sendGridService = new SendGridService(process.env.REACT_APP_SENDGRID_API_KEY || '');
