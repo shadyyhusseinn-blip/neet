@@ -1,288 +1,616 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Shield, Users, Code, Palette, Mail, Lock, ArrowLeft, Eye, EyeOff, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
+import { Crown, Users, Lock, Mail, User, ArrowLeft, Eye, EyeOff, Check, Camera, Code } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
-
-const PORTALS = [
-  {
-    id: 'admin',
-    title: 'بوابة الإدارة',
-    description: 'الدخول للوحة التحكم الرئيسية مع جميع الصلاحيات',
-    icon: Shield,
-    color: 'from-purple-500 to-pink-500',
-    role: 'admin',
-    redirect: '/admin'
-  },
-  {
-    id: 'staff',
-    title: 'بوابة الموظفين',
-    description: 'الدخول للوحة تحكم الموظفين',
-    icon: Users,
-    color: 'from-blue-500 to-cyan-500',
-    role: 'staff',
-    redirect: '/staff/dashboard'
-  },
-  {
-    id: 'developer',
-    title: 'بوابة المطور',
-    description: 'الدخول المباشر لأدوات التطوير والإعدادات',
-    icon: Code,
-    color: 'from-amber-500 to-orange-500',
-    role: 'developer',
-    redirect: '/developer'
-  },
-  {
-    id: 'client-manager',
-    title: 'بوابة إدارة الصفحة الخارجية',
-    description: 'الدخول المباشر لإدارة المحتوى والعملاء',
-    icon: Palette,
-    color: 'from-green-500 to-emerald-500',
-    role: 'client-manager',
-    redirect: '/client-manager'
-  }
-];
+import { clientLogin } from '../../services/clientAuth';
+import { toast } from 'sonner';
 
 export default function UnifiedLoginPage() {
-  const navigate = useNavigate();
-  const { signIn } = useAuthStore();
-  const [selectedPortal, setSelectedPortal] = useState<string | null>(null);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const { signIn, signInStaff } = useAuthStore();
+  const [selectedPortal, setSelectedPortal] = useState<'admin' | 'staff' | 'client' | null>(null);
+  
+  // Admin form state
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [adminError, setAdminError] = useState('');
+  const [rememberAdmin, setRememberAdmin] = useState(false);
+  
+  // Staff form state
+  const [staffUsername, setStaffUsername] = useState('');
+  const [staffPassword, setStaffPassword] = useState('');
+  const [showStaffPassword, setShowStaffPassword] = useState(false);
+  const [staffLoading, setStaffLoading] = useState(false);
+  const [staffError, setStaffError] = useState('');
+  const [rememberStaff, setRememberStaff] = useState(false);
 
-  const handlePortalSelect = (portalId: string) => {
-    setSelectedPortal(portalId);
-    setError('');
-  };
+  // Client form state
+  const [clientEmail, setClientEmail] = useState('');
+  const [clientPassword, setClientPassword] = useState('');
+  const [showClientPassword, setShowClientPassword] = useState(false);
+  const [clientLoading, setClientLoading] = useState(false);
+  const [clientError, setClientError] = useState('');
+  const [rememberClient, setRememberClient] = useState(false);
 
-  const handleBackToPortals = () => {
-    setSelectedPortal(null);
-    setEmail('');
-    setPassword('');
-    setError('');
-  };
+  // Load saved credentials on mount
+  useEffect(() => {
+    const savedAdminEmail = localStorage.getItem('admin_email');
+    const savedAdminPassword = localStorage.getItem('admin_password');
+    const savedRememberAdmin = localStorage.getItem('admin_remember');
+    
+    if (savedRememberAdmin === 'true' && savedAdminEmail && savedAdminPassword) {
+      setAdminEmail(savedAdminEmail);
+      setAdminPassword(savedAdminPassword);
+      setRememberAdmin(true);
+    }
 
-  const handleLogin = async (e: React.FormEvent) => {
+    const savedStaffUsername = localStorage.getItem('staff_username');
+    const savedStaffPassword = localStorage.getItem('staff_password');
+    const savedRememberStaff = localStorage.getItem('staff_remember');
+    
+    if (savedRememberStaff === 'true' && savedStaffUsername && savedStaffPassword) {
+      setStaffUsername(savedStaffUsername);
+      setStaffPassword(savedStaffPassword);
+      setRememberStaff(true);
+    }
+
+    const savedClientEmail = localStorage.getItem('client_email');
+    const savedClientPassword = localStorage.getItem('client_password');
+    const savedRememberClient = localStorage.getItem('client_remember');
+    
+    if (savedRememberClient === 'true' && savedClientEmail && savedClientPassword) {
+      setClientEmail(savedClientEmail);
+      setClientPassword(savedClientPassword);
+      setRememberClient(true);
+    }
+  }, []);
+
+  const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedPortal) return;
+    if (!adminEmail || !adminPassword) {
+      setAdminError('يرجى إدخال البريد الإلكتروني وكلمة المرور');
+      return;
+    }
 
-    setLoading(true);
-    setError('');
+    setAdminLoading(true);
+    setAdminError('');
 
     try {
-      const portal = PORTALS.find(p => p.id === selectedPortal);
-      if (portal) {
-        await signIn(email, password, portal.role as 'admin' | 'staff' | 'developer' | 'client-manager');
-        navigate(portal.redirect);
+      await signIn(adminEmail, adminPassword, 'admin');
+      
+      // Save credentials if remember is checked
+      if (rememberAdmin) {
+        localStorage.setItem('admin_email', adminEmail);
+        localStorage.setItem('admin_password', adminPassword);
+        localStorage.setItem('admin_remember', 'true');
+      } else {
+        localStorage.removeItem('admin_email');
+        localStorage.removeItem('admin_password');
+        localStorage.removeItem('admin_remember');
       }
+      
+      toast.success('تم تسجيل الدخول بنجاح ✅');
+      window.location.href = '/admin-general';
     } catch (err: any) {
-      setError(err.message || 'فشل تسجيل الدخول');
+      setAdminError(err.message || 'فشل تسجيل الدخول');
     } finally {
-      setLoading(false);
+      setAdminLoading(false);
     }
   };
 
-  const selectedPortalData = PORTALS.find(p => p.id === selectedPortal);
+  const handleStaffLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!staffUsername || !staffPassword) {
+      setStaffError('يرجى إدخال اسم المستخدم وكلمة المرور');
+      return;
+    }
 
-  return (
-    <div className="h-screen w-screen bg-[#050508] text-white font-['Cairo','Tajawal',sans-serif] overflow-hidden" dir="rtl">
-      {/* Background Effects */}
-      <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0f172a] via-[#1e1b4b] to-[#050508]" />
-        <motion.div
-          animate={{
-            scale: [1, 1.3, 1],
-            opacity: [0.3, 0.5, 0.3],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-          className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/30 rounded-full blur-3xl"
-        />
-        <motion.div
-          animate={{
-            scale: [1.2, 1, 1.2],
-            opacity: [0.2, 0.4, 0.2],
-          }}
-          transition={{
-            duration: 10,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-          className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/30 rounded-full blur-3xl"
-        />
-      </div>
+    setStaffLoading(true);
+    setStaffError('');
 
-      {/* Content */}
-      <div className="relative z-10 h-full flex flex-col items-center justify-center p-6">
-        <AnimatePresence mode="wait">
-          {!selectedPortal ? (
-            <motion.div
-              key="portals"
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -30 }}
-              transition={{ duration: 0.3 }}
-              className="w-full max-w-5xl"
-            >
-              <motion.div
-                initial={{ opacity: 0, y: -30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="text-center mb-12"
-              >
-                <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent mb-4">
-                  شادي حسين
-                </h1>
-                <p className="text-gray-400 text-lg md:text-xl">نظام إدارة التصوير الفوتوغرافي</p>
-              </motion.div>
+    try {
+      await signInStaff(staffUsername, staffPassword);
+      
+      // Save credentials if remember is checked
+      if (rememberStaff) {
+        localStorage.setItem('staff_username', staffUsername);
+        localStorage.setItem('staff_password', staffPassword);
+        localStorage.setItem('staff_remember', 'true');
+      } else {
+        localStorage.removeItem('staff_username');
+        localStorage.removeItem('staff_password');
+        localStorage.removeItem('staff_remember');
+      }
+      
+      toast.success('تم تسجيل الدخول بنجاح ✅');
+      window.location.href = '/adminstaff';
+    } catch (err: any) {
+      setStaffError(err.message || 'فشل تسجيل الدخول');
+    } finally {
+      setStaffLoading(false);
+    }
+  };
 
-              <div className="grid md:grid-cols-2 gap-6">
-                {PORTALS.map((portal, index) => (
-                  <motion.div
-                    key={portal.id}
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="group"
-                  >
-                    <motion.button
-                      whileHover={{ scale: 1.02, y: -5 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => handlePortalSelect(portal.id)}
-                      className="w-full h-full relative bg-gradient-to-br from-white/5 to-white/10 border border-white/10 rounded-3xl p-8 hover:border-white/20 transition-all duration-500 text-right"
-                    >
-                      <div className={`absolute inset-0 bg-gradient-to-br ${portal.color} opacity-0 group-hover:opacity-10 rounded-3xl transition-opacity duration-500`} />
-                      
-                      <div className="relative z-10 h-full flex flex-col">
-                        <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${portal.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
-                          <portal.icon size={40} className="text-white" />
-                        </div>
+  const handleDeveloperLogin = () => {
+    toast.success('تم الدخول كالمطور ✅');
+    window.location.href = '/admin-general';
+  };
 
-                        <h3 className="text-2xl font-bold text-white mb-3">
-                          {portal.title}
-                        </h3>
+  const handleClientLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!clientEmail || !clientPassword) {
+      setClientError('يرجى إدخال البريد الإلكتروني وكلمة المرور');
+      return;
+    }
 
-                        <p className="text-gray-400 text-base mb-6 flex-grow">
-                          {portal.description}
-                        </p>
+    setClientLoading(true);
+    setClientError('');
 
-                        <div className={`flex items-center gap-2 text-white font-semibold bg-gradient-to-r ${portal.color} px-6 py-3 rounded-xl group-hover:shadow-lg transition-all duration-300`}>
-                          <span>الدخول</span>
-                          <ArrowLeft size={18} />
-                        </div>
-                      </div>
-                    </motion.button>
-                  </motion.div>
-                ))}
-              </div>
+    try {
+      await clientLogin(clientEmail, clientPassword);
+      
+      // Save credentials if remember is checked
+      if (rememberClient) {
+        localStorage.setItem('client_email', clientEmail);
+        localStorage.setItem('client_password', clientPassword);
+        localStorage.setItem('client_remember', 'true');
+      } else {
+        localStorage.removeItem('client_email');
+        localStorage.removeItem('client_password');
+        localStorage.removeItem('client_remember');
+      }
+      
+      toast.success('تم تسجيل الدخول بنجاح ✅');
+      window.location.href = '/client-portal';
+    } catch (err: any) {
+      setClientError(err.message || 'فشل تسجيل الدخول');
+    } finally {
+      setClientLoading(false);
+    }
+  };
 
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className="mt-12 text-gray-500 text-sm text-center"
-              >
-                <p>اختر البوابة المناسبة للدخول</p>
-              </motion.div>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="login-form"
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -30 }}
-              transition={{ duration: 0.3 }}
-              className="w-full max-w-md"
-            >
-              <div className="text-center mb-8">
-                {selectedPortalData && (
-                  <div className={`w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br ${selectedPortalData.color} flex items-center justify-center`}>
-                    <selectedPortalData.icon size={40} className="text-white" />
-                  </div>
+  if (selectedPortal) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#050508] via-[#0a0a1a] to-[#050508] flex items-center justify-center p-4 sm:p-6" dir="rtl">
+        {/* Background Effects */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <motion.div
+            animate={{
+              scale: [1, 1.3, 1],
+              opacity: [0.15, 0.3, 0.15],
+            }}
+            transition={{
+              duration: 20,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-gradient-to-r from-slate-600/20 to-pink-600/20 rounded-full blur-[150px]"
+          />
+          <motion.div
+            animate={{
+              scale: [1, 1.4, 1],
+              opacity: [0.1, 0.25, 0.1],
+            }}
+            transition={{
+              duration: 25,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 2
+            }}
+            className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-gradient-to-r from-indigo-600/15 to-slate-600/15 rounded-full blur-[180px]"
+          />
+        </div>
+
+        <div className="relative z-10 w-full max-w-md">
+          {/* Back Button */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setSelectedPortal(null)}
+            className="mb-4 sm:mb-6 flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
+          >
+            <ArrowLeft size={16} />
+            <span className="text-sm sm:text-base">العودة</span>
+          </motion.button>
+
+          {/* Login Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl md:rounded-3xl p-6 md:p-8 shadow-2xl"
+          >
+            {/* Header */}
+            <div className="text-center mb-4 sm:mb-8">
+              <div className="inline-block mb-3 sm:mb-4">
+                {selectedPortal === 'admin' ? (
+                  <Crown size={32} className="text-blue-400 mx-auto" />
+                ) : selectedPortal === 'staff' ? (
+                  <Users size={32} className="text-emerald-400 mx-auto" />
+                ) : (
+                  <Camera size={32} className="text-amber-400 mx-auto" />
                 )}
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
-                  {selectedPortalData?.title}
-                </h1>
-                <p className="text-gray-400">تسجيل الدخول</p>
               </div>
+              <h1 className="text-xl sm:text-2xl font-bold text-white mb-1 sm:mb-2">
+                {selectedPortal === 'admin' ? 'بوابة الإدارة' : selectedPortal === 'staff' ? 'بوابة الموظفين' : 'بوابة العملاء'}
+              </h1>
+              <p className="text-xs sm:text-base text-slate-400">
+                {selectedPortal === 'admin' ? 'سجل دخولك للوصول إلى لوحة التحكم' : selectedPortal === 'staff' ? 'سجل دخولك للوحة الموظفين' : 'سجل دخولك للوصول إلى حسابك'}
+              </p>
+            </div>
 
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handleBackToPortals}
-                className="mb-6 text-gray-400 hover:text-white transition-colors flex items-center gap-2"
-              >
-                <ArrowLeft size={16} />
-                رجوع للبوابات
-              </motion.button>
-
-              <form onSubmit={handleLogin} className="space-y-6">
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-gray-300 mb-2">البريد الإلكتروني</label>
-                      <div className="relative">
-                        <Mail className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                        <input
-                          type="email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          className="w-full bg-white/10 border border-white/20 rounded-lg pl-12 pr-4 py-3 text-white focus:border-purple-500 transition-colors"
-                          placeholder="email@example.com"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-gray-300 mb-2">كلمة المرور</label>
-                      <div className="relative">
-                        <Lock className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                        <input
-                          type={showPassword ? 'text' : 'password'}
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          className="w-full bg-white/10 border border-white/20 rounded-lg pl-12 pr-4 py-3 text-white focus:border-purple-500 transition-colors"
-                          placeholder="••••••••"
-                          required
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-                        >
-                          {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                        </button>
-                      </div>
-                    </div>
+            {/* Form */}
+            {selectedPortal === 'admin' ? (
+              <form onSubmit={handleAdminLogin} className="space-y-4 sm:space-y-6">
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">
+                    البريد الإلكتروني
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input
+                      type="email"
+                      value={adminEmail}
+                      onChange={(e) => setAdminEmail(e.target.value)}
+                      placeholder="admin@example.com"
+                      className="w-full pr-10 pl-4 py-2 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-all text-sm sm:text-base"
+                      dir="ltr"
+                    />
                   </div>
                 </div>
 
-                {error && (
-                  <div className="bg-red-500/20 border border-red-500/30 rounded-xl p-4 text-red-400">
-                    {error}
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">
+                    كلمة المرور
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input
+                      type={showAdminPassword ? 'text' : 'password'}
+                      value={adminPassword}
+                      onChange={(e) => setAdminPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pr-10 pl-12 py-2 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-all text-sm sm:text-base"
+                      dir="ltr"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowAdminPassword(!showAdminPassword)}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                    >
+                      {showAdminPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={rememberAdmin}
+                      onChange={(e) => setRememberAdmin(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-5 h-5 border-2 border-slate-600 rounded peer-checked:bg-blue-500 peer-checked:border-blue-500 transition-all flex items-center justify-center">
+                      {rememberAdmin && <Check size={12} className="text-white" />}
+                    </div>
+                  </div>
+                  <span className="text-xs sm:text-sm text-slate-400">تذكر بياناتي</span>
+                </label>
+
+                {adminError && (
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-2 sm:p-3 text-red-400 text-xs sm:text-sm">
+                    {adminError}
                   </div>
                 )}
 
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                <button
                   type="submit"
-                  disabled={loading}
-                  className={`w-full py-4 bg-gradient-to-r ${selectedPortalData?.color} rounded-xl text-white font-semibold hover:opacity-90 transition-all disabled:opacity-50 flex items-center justify-center gap-2`}
+                  disabled={adminLoading}
+                  className="w-full py-2 sm:py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm sm:text-base"
                 >
-                  {loading ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'}
-                </motion.button>
+                  {adminLoading ? (
+                    <>
+                      <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>جاري تسجيل الدخول...</span>
+                    </>
+                  ) : (
+                    <span>تسجيل الدخول</span>
+                  )}
+                </button>
               </form>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            ) : selectedPortal === 'staff' ? (
+              <form onSubmit={handleStaffLogin} className="space-y-4 sm:space-y-6">
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">
+                    اسم المستخدم
+                  </label>
+                  <div className="relative">
+                    <User className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input
+                      type="text"
+                      value={staffUsername}
+                      onChange={(e) => setStaffUsername(e.target.value)}
+                      placeholder="اسم المستخدم"
+                      className="w-full pr-10 pl-4 py-2 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-all text-sm sm:text-base"
+                      dir="ltr"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">
+                    كلمة المرور
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input
+                      type={showStaffPassword ? 'text' : 'password'}
+                      value={staffPassword}
+                      onChange={(e) => setStaffPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pr-10 pl-12 py-2 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-all text-sm sm:text-base"
+                      dir="ltr"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowStaffPassword(!showStaffPassword)}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                    >
+                      {showStaffPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={rememberStaff}
+                      onChange={(e) => setRememberStaff(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-5 h-5 border-2 border-slate-600 rounded peer-checked:bg-emerald-500 peer-checked:border-emerald-500 transition-all flex items-center justify-center">
+                      {rememberStaff && <Check size={12} className="text-white" />}
+                    </div>
+                  </div>
+                  <span className="text-xs sm:text-sm text-slate-400">تذكر بياناتي</span>
+                </label>
+
+                {staffError && (
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-2 sm:p-3 text-red-400 text-xs sm:text-sm">
+                    {staffError}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={staffLoading}
+                  className="w-full py-2 sm:py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-medium hover:from-emerald-600 hover:to-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm sm:text-base"
+                >
+                  {staffLoading ? (
+                    <>
+                      <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>جاري تسجيل الدخول...</span>
+                    </>
+                  ) : (
+                    <span>تسجيل الدخول</span>
+                  )}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleClientLogin} className="space-y-4 sm:space-y-6">
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">
+                    البريد الإلكتروني
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input
+                      type="email"
+                      value={clientEmail}
+                      onChange={(e) => setClientEmail(e.target.value)}
+                      placeholder="client@example.com"
+                      className="w-full pr-10 pl-4 py-2 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-all text-sm sm:text-base"
+                      dir="ltr"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">
+                    كلمة المرور
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input
+                      type={showClientPassword ? 'text' : 'password'}
+                      value={clientPassword}
+                      onChange={(e) => setClientPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pr-10 pl-12 py-2 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-all text-sm sm:text-base"
+                      dir="ltr"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowClientPassword(!showClientPassword)}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                    >
+                      {showClientPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={rememberClient}
+                      onChange={(e) => setRememberClient(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-5 h-5 border-2 border-slate-600 rounded peer-checked:bg-amber-500 peer-checked:border-amber-500 transition-all flex items-center justify-center">
+                      {rememberClient && <Check size={12} className="text-white" />}
+                    </div>
+                  </div>
+                  <span className="text-xs sm:text-sm text-slate-400">تذكر بياناتي</span>
+                </label>
+
+                {clientError && (
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-2 sm:p-3 text-red-400 text-xs sm:text-sm">
+                    {clientError}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={clientLoading}
+                  className="w-full py-2 sm:py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-medium hover:from-amber-600 hover:to-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm sm:text-base"
+                >
+                  {clientLoading ? (
+                    <>
+                      <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>جاري تسجيل الدخول...</span>
+                    </>
+                  ) : (
+                    <span>تسجيل الدخول</span>
+                  )}
+                </button>
+              </form>
+            )}
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-[#050508] via-[#0a0a1a] to-[#050508] flex items-center justify-center p-4 sm:p-6" dir="rtl">
+      {/* Background Effects */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <motion.div
+          animate={{
+            scale: [1, 1.3, 1],
+            opacity: [0.15, 0.3, 0.15],
+          }}
+          transition={{
+            duration: 20,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+          className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-gradient-to-r from-slate-600/20 to-pink-600/20 rounded-full blur-[150px]"
+        />
+        <motion.div
+          animate={{
+            scale: [1, 1.4, 1],
+            opacity: [0.1, 0.25, 0.1],
+          }}
+          transition={{
+            duration: 25,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 2
+          }}
+          className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-gradient-to-r from-indigo-600/15 to-slate-600/15 rounded-full blur-[180px]"
+        />
+      </div>
+
+      <div className="relative z-10 w-full max-w-4xl">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-8 md:mb-12"
+        >
+          <h1 className="text-3xl sm:text-5xl font-bold text-white mb-2 sm:mb-4 bg-gradient-to-r from-slate-400 to-pink-400 bg-clip-text text-transparent">شادي حسين</h1>
+          <p className="text-slate-400 text-sm sm:text-xl">نظام إدارة التصوير الفوتوغرافي</p>
+        </motion.div>
+
+        {/* Portals Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
+          {/* Admin Portal */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setSelectedPortal('admin')}
+            className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl md:rounded-3xl p-6 md:p-8 hover:border-blue-500/30 transition-all duration-300 text-right cursor-pointer shadow-xl"
+          >
+            <div className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center mb-4 sm:mb-6 shadow-lg shadow-blue-500/30">
+                <Crown size={28} className="text-white" />
+              </div>
+              <h3 className="text-lg sm:text-2xl font-bold text-white mb-2 sm:mb-3">بوابة الإدارة العامة</h3>
+              <p className="text-slate-400 text-xs sm:text-base mb-4 sm:mb-6">الدخول للوحة التحكم الرئيسية مع جميع الصلاحيات</p>
+              <div className="flex items-center gap-2 text-white font-medium bg-gradient-to-r from-blue-500 to-purple-500 px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-base shadow-lg shadow-blue-500/20">
+                <span>الدخول</span>
+                <ArrowLeft size={16} />
+              </div>
+            </div>
+          </motion.button>
+
+          {/* Staff Portal */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setSelectedPortal('staff')}
+            className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl md:rounded-3xl p-6 md:p-8 hover:border-emerald-500/30 transition-all duration-300 text-right cursor-pointer shadow-xl"
+          >
+            <div className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center mb-4 sm:mb-6 shadow-lg shadow-emerald-500/30">
+                <Users size={28} className="text-white" />
+              </div>
+              <h3 className="text-lg sm:text-2xl font-bold text-white mb-2 sm:mb-3">بوابة الموظفين</h3>
+              <p className="text-slate-400 text-xs sm:text-base mb-4 sm:mb-6">الدخول للوحة تحكم الموظفين والمهام المخصصة</p>
+              <div className="flex items-center gap-2 text-white font-medium bg-gradient-to-r from-emerald-500 to-teal-500 px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-base shadow-lg shadow-emerald-500/20">
+                <span>الدخول</span>
+                <ArrowLeft size={16} />
+              </div>
+            </div>
+          </motion.button>
+
+          {/* Client Portal */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setSelectedPortal('client')}
+            className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl md:rounded-3xl p-6 md:p-8 hover:border-amber-500/30 transition-all duration-300 text-right cursor-pointer shadow-xl"
+          >
+            <div className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center mb-4 sm:mb-6 shadow-lg shadow-amber-500/30">
+                <Camera size={28} className="text-white" />
+              </div>
+              <h3 className="text-lg sm:text-2xl font-bold text-white mb-2 sm:mb-3">بوابة العملاء</h3>
+              <p className="text-slate-400 text-xs sm:text-base mb-4 sm:mb-6">الدخول للوصول إلى معرض الصور والخدمات</p>
+              <div className="flex items-center gap-2 text-white font-medium bg-gradient-to-r from-amber-500 to-orange-500 px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-base shadow-lg shadow-amber-500/20">
+                <span>الدخول</span>
+                <ArrowLeft size={16} />
+              </div>
+            </div>
+          </motion.button>
+        </div>
+
+        {/* Developer Quick Access */}
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={handleDeveloperLogin}
+          className="w-full bg-gradient-to-r from-purple-600/20 to-pink-600/20 backdrop-blur-xl border border-purple-500/30 rounded-2xl md:rounded-3xl p-4 md:p-6 hover:border-purple-500/50 transition-all duration-300 text-right cursor-pointer shadow-xl"
+        >
+          <div className="flex items-center justify-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
+              <Code size={24} className="text-white" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg sm:text-xl font-bold text-white">دخول المطور المباشر</h3>
+              <p className="text-slate-400 text-xs sm:text-sm">دخول سريع بدون كلمة مرور</p>
+            </div>
+          </div>
+        </motion.button>
+
+        {/* Footer */}
+        <div className="text-center mt-6 sm:mt-12 text-gray-500 text-xs sm:text-sm">
+          <p>© 2024 شادي حسين - جميع الحقوق محفوظة</p>
+        </div>
       </div>
     </div>
   );
