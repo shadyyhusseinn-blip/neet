@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, Lock, Mail, User } from 'lucide-react';
+import { Camera, Lock, Mail } from 'lucide-react';
 import { clientLogin } from '../../services/clientAuth';
-import { Button, Input } from '../../design-system/components';
+import { Button } from '../../shared/ui/Button';
+import { Input } from '../../shared/ui/Input';
 import { motion } from 'motion/react';
 
 export function ClientLogin() {
@@ -55,7 +56,8 @@ export function ClientLogin() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="your@email.com"
               required
-              leftIcon={<Mail size={18} />}
+              icon={<Mail size={18} />}
+              iconPosition="left"
             />
 
             <Input
@@ -65,7 +67,8 @@ export function ClientLogin() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
-              leftIcon={<Lock size={18} />}
+              icon={<Lock size={18} />}
+              iconPosition="left"
             />
 
             {error && (
@@ -82,6 +85,25 @@ export function ClientLogin() {
               loading={loading}
             >
               تسجيل الدخول
+            </Button>
+
+            {/* Developer Login Button */}
+            <Button
+              type="button"
+              variant="secondary"
+              size="md"
+              fullWidth
+              onClick={() => {
+                const devClientId = 'dev-client-123';
+                localStorage.setItem('clientData', JSON.stringify({
+                  id: devClientId,
+                  name: 'مطور',
+                  email: 'dev@example.com'
+                }));
+                navigate(`/client/portal/${devClientId}`);
+              }}
+            >
+              دخول كمطور
             </Button>
           </form>
 
