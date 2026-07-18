@@ -1,35 +1,150 @@
-import { useEffect, useState, lazy, Suspense } from 'react';
+import { useEffect, lazy, Suspense, Component, ReactNode, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from './hooks/useApp';
 import { useNotifications } from './hooks/useNotifications';
 import { useAuthStore } from './stores/authStore';
-import { cn } from './lib/utils';
 import { storage } from './services/storage';
 import { firebaseService } from './services/firebase';
 import { firestoreSync } from './services/firestoreSync';
+import { audioService } from './services/audio';
+import { pushNotificationService } from './services/pushNotifications';
+import { log } from './core/logger';
+import { RefreshCw, AlertTriangle, ChevronRight, ChevronLeft } from 'lucide-react';
+import { ThemeProvider } from './contexts/ThemeContext';
+
+// Global Error Boundary Component
+class ErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: any) {
+    log.error('Error caught by boundary', { error, errorInfo }, 'error-boundary');
+  }
+
+  handleRetry = () => {
+    this.setState({ hasError: false, error: null });
+    window.location.reload();
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-[#050508] via-[#0a0a1a] to-[#050508] text-white flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="max-w-md w-full bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-8 text-center"
+          >
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2, type: 'spring' }}
+              className="w-16 h-16 bg-red-500/20 border border-red-500/30 rounded-full flex items-center justify-center mx-auto mb-6"
+            >
+              <AlertTriangle size={32} className="text-red-400" />
+            </motion.div>
+            
+            <h2 className="text-2xl font-bold text-white mb-3">حدث خطأ غير متوقع</h2>
+            <p className="text-slate-400 mb-6 leading-relaxed">
+              نعتذر عن الإزعاج. حدث خطأ تقني أثناء تحميل الصفحة. يرجى المحاولة مرة أخرى.
+            </p>
+            
+            {this.state.error && (
+              <div className="bg-white/5 border border-white/10 rounded-lg p-4 mb-6 text-right">
+                <p className="text-xs text-slate-500 font-mono break-all">
+                  {this.state.error.message}
+                </p>
+              </div>
+            )}
+            
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={this.handleRetry}
+              className="w-full py-3 bg-gradient-to-r from-slate-600 to-pink-600 rounded-xl text-white font-semibold flex items-center justify-center gap-2 hover:from-slate-700 hover:to-pink-700 transition-all"
+            >
+              <RefreshCw size={18} />
+              إعادة المحاولة
+            </motion.button>
+          </motion.div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 // Core components (not lazy loaded)
-import Sidebar from './components/layout/Sidebar';
-import Header from './components/layout/Header';
-import ToastContainer from './components/shared/ToastContainer';
-import CommandPalette from './components/shared/CommandPalette';
-import NotificationPanel from './components/shared/NotificationPanel';
-import DeliveryAlarmModal from './components/modals/DeliveryAlarmModal';
-import DataLossWarningModal from './components/modals/DataLossWarningModal';
-import EditingStatusOverlay from './components/layout/EditingStatusOverlay';
+import { AdminLayout } from './components/layout/AdminLayout';
+import CookieBanner from './components/common/CookieBanner';
 
 // Booking pages - only keep these
+const AdminIndex = lazy(() => import('./pages/admin/AdminIndex'));
+const AdminMemberIndex = lazy(() => import('./pages/admin/AdminMemberIndex'));
+const SimpleDashboard = lazy(() => import('./pages/admin/SimpleDashboard'));
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const NewBooking = lazy(() => import('./pages/admin/NewBooking'));
+const StaffNewBooking = lazy(() => import('./pages/admin/StaffNewBooking'));
+const BookingDetails = lazy(() => import('./pages/admin/BookingDetails'));
 const BookingRecords = lazy(() => import('./pages/admin/BookingRecords'));
-const BookingsAccountsDashboard = lazy(() => import('./pages/admin/BookingsAccountsDashboard'));
-const BookingsAccountsManagement = lazy(() => import('./pages/admin/BookingsAccountsManagement'));
+const Settings = lazy(() => import('./pages/admin/Settings'));
+const SiteManager = lazy(() => import('./pages/admin/SiteManager'));
+const StaffManagement = lazy(() => import('./pages/admin/StaffManagement'));
+const SmartGalleryCreator = lazy(() => import('./pages/admin/SmartGalleryCreator'));
+const GalleryEditor = lazy(() => import('./pages/admin/GalleryEditor'));
+const VisitorLogsPage = lazy(() => import('./pages/admin/VisitorLogsPage'));
+const GoogleDriveSettings = lazy(() => import('./pages/admin/GoogleDriveSettings'));
+const SetupGoogleDrive = lazy(() => import('./pages/admin/SetupGoogleDrive'));
+const GoogleDriveDashboard = lazy(() => import('./pages/admin/GoogleDriveDashboard'));
+const WhatsAppImport = lazy(() => import('./pages/admin/WhatsAppImport'));
+const BookingsHub = lazy(() => import('./pages/admin/BookingsHub'));
+const ChatManagement = lazy(() => import('./pages/admin/ChatManagement'));
+const BookingsPackages = lazy(() => import('./pages/admin/BookingsPackages'));
+const AIManagement = lazy(() => import('./pages/admin/AIManagement'));
+const ContactManagement = lazy(() => import('./pages/admin/ContactManagement'));
+const ContactMessagesPage = lazy(() => import('./pages/admin/ContactMessagesPage'));
+const ContractsManagement = lazy(() => import('./pages/admin/ContractsManagement'));
+const ExpensesTracker = lazy(() => import('./pages/admin/ExpensesTracker'));
+const ManagerNotes = lazy(() => import('./pages/admin/ManagerNotes'));
+const QuickBooking = lazy(() => import('./pages/admin/QuickBooking'));
+const ReportsPage = lazy(() => import('./pages/admin/ReportsPage'));
+const StorageDashboard = lazy(() => import('./pages/admin/StorageDashboard'));
+const WhatsAppAlerts = lazy(() => import('./pages/admin/WhatsAppAlerts'));
+const UserManagement = lazy(() => import('./pages/admin/UserManagement'));
+
+// Staff pages
+const StaffDashboard = lazy(() => import('./pages/staff/StaffDashboard'));
+const StaffBookingRecords = lazy(() => import('./pages/staff/StaffBookingRecords'));
+
+// Client pages
+const ClientPortal = lazy(() => import('./pages/client/ClientPortal'));
+
+// Client Manager pages
+const ClientManagerPortalDashboard = lazy(() => import('./pages/client-manager/ClientManagerPortalDashboard'));
+const ClientManagement = lazy(() => import('./pages/client-manager/ClientManagement'));
 
 // Public pages
 const LandingPage = lazy(() => import('./pages/public/LandingPage'));
 const PortfolioPage = lazy(() => import('./pages/public/PortfolioPage'));
 const PackagesPage = lazy(() => import('./pages/public/PackagesPage'));
 const UnifiedLoginPage = lazy(() => import('./pages/public/UnifiedLoginPage'));
+const BookingWizard = lazy(() => import('./pages/public/BookingWizard'));
+const ContactPage = lazy(() => import('./pages/public/ContactPage'));
+const ContractSignPage = lazy(() => import('./pages/public/ContractSignPage'));
+const DeletedGalleryPage = lazy(() => import('./pages/public/DeletedGalleryPage'));
+const PrivacyPolicy = lazy(() => import('./pages/public/PrivacyPolicy'));
+const TermsOfService = lazy(() => import('./pages/public/TermsOfService'));
 
 // Error pages
 const NotFound = lazy(() => import('./pages/error/NotFound'));
@@ -40,11 +155,80 @@ const NetworkError = lazy(() => import('./pages/error/NetworkError'));
 const LoadingFallback = () => (
   <div className="flex items-center justify-center min-h-screen bg-[#050508]">
     <div className="text-center">
-      <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+      <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
       <p className="text-gray-400">جاري التحميل...</p>
     </div>
   </div>
 );
+
+// Universal Navigation Topbar Component
+function UniversalNavigationTopbar() {
+  const navigate = useNavigate();
+  const [canGoBack, setCanGoBack] = useState(false);
+  const [canGoForward, setCanGoForward] = useState(false);
+
+  useEffect(() => {
+    const updateNavigationState = () => {
+      setCanGoBack(window.history.length > 1);
+      setCanGoForward(window.history.state?.forward !== null);
+    };
+
+    updateNavigationState();
+    window.addEventListener('popstate', updateNavigationState);
+    return () => window.removeEventListener('popstate', updateNavigationState);
+  }, []);
+
+  const handleBack = () => {
+    if (canGoBack) {
+      if (!audioService.getMuteState()) audioService.playClick();
+      navigate(-1);
+    }
+  };
+
+  const handleForward = () => {
+    if (canGoForward) {
+      if (!audioService.getMuteState()) audioService.playClick();
+      navigate(1);
+    }
+  };
+
+  return (
+    <div className="fixed top-4 left-4 z-[9999] flex gap-2">
+      <motion.button
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        onClick={handleBack}
+        disabled={!canGoBack}
+        className={`
+          w-10 h-10 rounded-full backdrop-blur-xl border flex items-center justify-center transition-all duration-300
+          ${canGoBack 
+            ? 'bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30' 
+            : 'bg-white/5 border-white/5 text-slate-600 cursor-not-allowed opacity-50'
+          }
+        `}
+        title="السابق"
+      >
+        <ChevronRight size={20} />
+      </motion.button>
+      <motion.button
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        onClick={handleForward}
+        disabled={!canGoForward}
+        className={`
+          w-10 h-10 rounded-full backdrop-blur-xl border flex items-center justify-center transition-all duration-300
+          ${canGoForward 
+            ? 'bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30' 
+            : 'bg-white/5 border-white/5 text-slate-600 cursor-not-allowed opacity-50'
+          }
+        `}
+        title="التالي"
+      >
+        <ChevronLeft size={20} />
+      </motion.button>
+    </div>
+  );
+}
 
 const pageTransition = {
   initial: { opacity: 0, y: 14, filter: 'blur(6px)' },
@@ -56,20 +240,9 @@ const pageTransition = {
 function AppContent() {
   const app = useApp();
   const notifications = useNotifications();
-  const { user, isLoggedIn, isLoading, initializeAuth, logout } = useAuthStore();
+  const { isLoading, initializeAuth, user } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
-
-  const handleLoginSuccess = (userData: any) => {
-    navigate('/admin/new-booking');
-  };
-
-  const handleLogout = () => {
-    logout();
-    localStorage.setItem('isLoggedIn', 'false');
-    localStorage.removeItem('currentUser');
-    navigate('/');
-  };
 
   useEffect(() => {
     firebaseService.initialize().then(() => {
@@ -78,6 +251,11 @@ function AppContent() {
         console.log('Starting Firestore sync...');
         firestoreSync.startSync(5000);
         firestoreSync.subscribeToRealtimeUpdates();
+        
+        // Initialize push notifications
+        pushNotificationService.initialize().catch(err => {
+          console.error('Failed to initialize push notifications:', err);
+        });
       }
     }).catch((error) => {
       console.error('Failed to initialize Firebase:', error);
@@ -112,24 +290,108 @@ function AppContent() {
     };
   }, []);
 
+  // Admin Route Guard
+  useEffect(() => {
+    const isAdminRoute = location.pathname.startsWith('/admin') || location.pathname.startsWith('/dashboard');
+    const isStaffRoute = location.pathname.startsWith('/staff') || location.pathname.startsWith('/adminstaff');
+
+    if ((isAdminRoute || isStaffRoute) && !isLoading && !user) {
+      console.log('Protected route accessed without authentication, redirecting to login');
+      navigate('/unified-login', { replace: true });
+    }
+  }, [location.pathname, isLoading, user, navigate]);
+
+  // Redirect legacy booking routes to new structure
+  useEffect(() => {
+    const path = location.pathname;
+    
+    // Legacy booking routes redirect
+    if (path === '/admin-general/new-booking') {
+      navigate('/admin-general/bookings-hub/new', { replace: true });
+    } else if (path === '/admin-general/booking-records') {
+      navigate('/admin-general/bookings-hub/records', { replace: true });
+    } else if (path.match(/^\/admin-general\/booking-details\/([^/]+)$/)) {
+      const bookingId = path.match(/^\/admin-general\/booking-details\/([^/]+)$/)?.[1];
+      if (bookingId) {
+        navigate(`/admin-general/bookings-hub/details/${bookingId}`, { replace: true });
+      }
+    } else if (path === '/admin-general/whatsapp-import') {
+      navigate('/admin-general/bookings-hub/whatsapp-import', { replace: true });
+    }
+  }, [location.pathname, navigate]);
+
   const renderView = () => {
     const currentPath = location.pathname;
     let view = 'landing';
 
     if (currentPath === '/') view = 'landing';
     else if (currentPath === '/portfolio') view = 'portfolio';
+    else if (currentPath.match(/^\/portfolio\/[^/]+$/)) view = 'portfolio';
     else if (currentPath === '/packages') view = 'packages';
-    else if (currentPath === '/login') view = 'login';
     else if (currentPath === '/unified-login') view = 'login';
-    else if (currentPath === '/admin/new-booking') view = 'new-booking';
-    else if (currentPath === '/admin/booking-records') view = 'booking-records';
-    else if (currentPath === '/admin/bookings-accounts') view = 'bookings-accounts-dashboard';
-    else if (currentPath === '/admin/bookings-management') view = 'bookings-accounts-management';
-    else if (currentPath === '/new-booking') view = 'new-booking';
-    else if (currentPath === '/booking-records') view = 'booking-records';
+    else if (currentPath === '/admin-login') view = 'login';
+    else if (currentPath === '/staff-login') view = 'login';
+    else if (currentPath === '/contact') view = 'contact';
+    else if (currentPath === '/book-now') view = 'booking-wizard';
+    else if (currentPath === '/contract-sign') view = 'contract-sign';
+    else if (currentPath === '/deleted-gallery') view = 'deleted-gallery';
+    else if (currentPath === '/admin-general') view = 'admin-index';
+    else if (currentPath === '/adminstaff') view = 'admin-member-index';
+    else if (currentPath === '/admin-general/dashboard') view = 'simple-dashboard';
+    else if (currentPath === '/admin-general/admin-dashboard') view = 'admin-dashboard';
+    else if (currentPath === '/admin-general/settings') view = 'settings';
+    else if (currentPath === '/adminstaff/new-booking') view = 'staff-new-booking';
+    else if (currentPath === '/admin-general/booking-records') view = 'booking-records';
+    else if (currentPath === '/admin-general/site-manager') view = 'site-manager';
+    else if (currentPath === '/admin-general/websiteadministration') view = 'site-manager';
+    else if (currentPath === '/admin-general/gallerieseditor') view = 'smart-gallery-creator';
+    else if (currentPath === '/admin-general/websiteadministration/galleries') view = 'smart-gallery-creator';
+    else if (currentPath === '/admin-general/galleries') view = 'smart-gallery-creator';
+    else if (currentPath === '/admin-general/websiteadministration/visitor-logs') view = 'visitor-logs';
+    else if (currentPath === '/admin-general/visitor-logs') view = 'visitor-logs';
+    else if (currentPath === '/admin-general/websiteadministration/google-drive') view = 'google-drive-settings';
+    else if (currentPath === '/admin-general/google-drive') view = 'google-drive-settings';
+    else if (currentPath === '/admin-general/websiteadministration/google-drive-dashboard') view = 'google-drive-dashboard';
+    else if (currentPath === '/admin-general/google-drive-dashboard') view = 'google-drive-dashboard';
+    else if (currentPath === '/admin-general/google-drive-settings') view = 'google-drive-settings';
+    else if (currentPath === '/admin-general/setup-google-drive') view = 'setup-google-drive';
+    else if (currentPath === '/admin-general/staff-management') view = 'staff-management';
+    else if (currentPath === '/admin-general/chat-management') view = 'chat-management';
+    else if (currentPath === '/admin-general/whatsapp-import') view = 'whatsapp-import';
+    else if (currentPath === '/admin-general/bookings-hub') view = 'bookings-hub';
+    else if (currentPath === '/admin-general/bookings-hub/new') view = 'new-booking';
+    else if (currentPath === '/admin-general/bookings-hub/packages') view = 'bookings-packages';
+    else if (currentPath === '/admin-general/bookings-hub/records') view = 'booking-records';
+    else if (currentPath === '/admin-general/bookings-hub/whatsapp-import') view = 'whatsapp-import';
+    else if (currentPath.match(/^\/admin-general\/bookings-hub\/details\/[^/]+$/)) view = 'booking-details';
+    else if (currentPath === '/staff') view = 'staff-dashboard';
+    else if (currentPath === '/staff/booking-records') view = 'staff-booking-records';
+    else if (currentPath === '/staff/new-booking') view = 'staff-new-booking';
+    else if (currentPath === '/admin-general/ai-management') view = 'ai-management';
+    else if (currentPath === '/admin-general/contact-management') view = 'contact-management';
+    else if (currentPath === '/admin-general/contact-messages') view = 'contact-messages';
+    else if (currentPath === '/admin-general/contracts-management') view = 'contracts-management';
+    else if (currentPath === '/admin-general/expenses-tracker') view = 'expenses-tracker';
+    else if (currentPath === '/admin-general/manager-notes') view = 'manager-notes';
+    else if (currentPath === '/admin-general/quick-booking') view = 'quick-booking';
+    else if (currentPath === '/admin-general/reports') view = 'reports';
+    else if (currentPath === '/admin-general/storage-dashboard') view = 'storage-dashboard';
+    else if (currentPath === '/admin-general/whatsapp-alerts') view = 'whatsapp-alerts';
+    else if (currentPath === '/admin-general/user-management') view = 'user-management';
+    else if (currentPath === '/client-portal') view = 'client-portal';
+    else if (currentPath === '/client-manager/dashboard') view = 'client-manager-dashboard';
+    else if (currentPath === '/client-manager/clients') view = 'client-management';
+    else if (currentPath === '/privacy-policy') view = 'privacy-policy';
+    else if (currentPath === '/terms-of-service') view = 'terms-of-service';
+    else if (currentPath.match(/^\/admin-general\/gallerieseditor\/edit\/[^/]+$/)) {
+      view = 'gallery-editor';
+    }
+    else if (currentPath.match(/^\/admin-general\/gallerieseditor\/edit$/)) {
+      view = 'gallery-editor';
+    }
 
     if (app.currentView !== view) {
-      app.setCurrentView(view);
+      app.setCurrentView(view as any);
     }
 
     switch (view) {
@@ -141,31 +403,116 @@ function AppContent() {
         return <PackagesPage />;
       case 'login':
         return <UnifiedLoginPage />;
+      case 'booking-wizard':
+        return <BookingWizard />;
+      case 'contact':
+        return <ContactPage />;
+      case 'contract-sign':
+        return <ContractSignPage />;
+      case 'deleted-gallery':
+        return <DeletedGalleryPage />;
+      case 'admin-index':
+        return <AdminIndex />;
+      case 'admin-member-index':
+        return <AdminMemberIndex />;
+      case 'simple-dashboard':
+        return <SimpleDashboard />;
+      case 'admin-dashboard':
+        return <AdminDashboard />;
+      case 'settings':
+        return <Settings />;
       case 'new-booking':
         return <NewBooking />;
+      case 'booking-details':
+        return <BookingDetails />;
+      case 'staff-new-booking':
+        return <StaffNewBooking />;
       case 'booking-records':
         return <BookingRecords />;
-      case 'bookings-accounts-dashboard':
-        return <BookingsAccountsDashboard />;
-      case 'bookings-accounts-management':
-        return <BookingsAccountsManagement />;
+      case 'site-manager':
+        return <SiteManager />;
+      case 'staff-management':
+        return <StaffManagement />;
+      case 'chat-management':
+        return <ChatManagement />;
+      case 'whatsapp-import':
+        return <WhatsAppImport />;
+      case 'bookings-hub':
+        return <BookingsHub />;
+      case 'bookings-packages':
+        return <BookingsPackages />;
+      case 'smart-gallery-creator':
+        return <SmartGalleryCreator />;
+      case 'gallery-editor':
+        return <GalleryEditor />;
+      case 'visitor-logs':
+        return <VisitorLogsPage />;
+      case 'google-drive-settings':
+        return <GoogleDriveSettings />;
+      case 'setup-google-drive':
+        return <SetupGoogleDrive />;
+      case 'google-drive-dashboard':
+        return <GoogleDriveDashboard />;
+      case 'staff-dashboard':
+        return <StaffDashboard />;
+      case 'staff-booking-records':
+        return <StaffBookingRecords />;
+      case 'ai-management':
+        return <AIManagement />;
+      case 'contact-management':
+        return <ContactManagement />;
+      case 'contact-messages':
+        return <ContactMessagesPage />;
+      case 'contracts-management':
+        return <ContractsManagement />;
+      case 'expenses-tracker':
+        return <ExpensesTracker />;
+      case 'manager-notes':
+        return <ManagerNotes />;
+      case 'quick-booking':
+        return <QuickBooking />;
+      case 'reports':
+        return <ReportsPage />;
+      case 'storage-dashboard':
+        return <StorageDashboard />;
+      case 'whatsapp-alerts':
+        return <WhatsAppAlerts />;
+      case 'user-management':
+        return <UserManagement />;
+      case 'client-portal':
+        return <ClientPortal />;
+      case 'client-manager-dashboard':
+        return <ClientManagerPortalDashboard />;
+      case 'client-management':
+        return <ClientManagement />;
+      case 'privacy-policy':
+        return <PrivacyPolicy />;
+      case 'terms-of-service':
+        return <TermsOfService />;
+      case 'not-found':
+        return <NotFound />;
       default:
-        return <LandingPage />;
+        return <NotFound />;
     }
   };
 
   const isPublicRoute = location.pathname === '/' ||
                         location.pathname === '/portfolio' ||
+                        location.pathname.match(/^\/portfolio\/[^/]+$/) ||
                         location.pathname === '/packages' ||
-                        location.pathname === '/login' ||
-                        location.pathname === '/unified-login';
+                        location.pathname === '/unified-login' ||
+                        location.pathname === '/book-now' ||
+                        location.pathname === '/contact' ||
+                        location.pathname === '/deleted-gallery' ||
+                        location.pathname.startsWith('/admin');
 
   return (
     <>
+      <UniversalNavigationTopbar />
       {isLoading && !isPublicRoute ? (
         <div className="min-h-screen bg-[#0B0B0F] text-white flex items-center justify-center">
           <div className="text-center">
-            <div className="w-12 h-12 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin mx-auto mb-4"></div>
+            <div className="w-12 h-12 border-4 border-blue-500/30 border-t-purple-500 rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-400">جاري التحميل...</p>
           </div>
         </div>
@@ -182,107 +529,36 @@ function AppContent() {
               </motion.div>
             </AnimatePresence>
           ) : (
-            <div className="page-shell flex min-h-screen" dir="rtl">
-            <AnimatePresence>
-              {app.isSidebarOpen && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  onClick={app.toggleSidebar}
-                  className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[400] lg:hidden"
-                />
-              )}
-            </AnimatePresence>
-
-            <Sidebar
-              isOpen={app.isSidebarOpen}
-              currentView={app.currentView}
-              onNavigate={app.navigateTo}
-              onToggle={app.toggleSidebar}
-              currentUser={user}
-            />
-
-            <div
-              className={cn(
-                'flex-1 flex flex-col min-h-screen relative z-10 transition-[margin] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]',
-                'lg:mr-[17rem]',
-                !app.isSidebarOpen && 'lg:mr-[5.25rem]',
-                'mr-0'
-              )}
-            >
-              <Header
-                isDarkMode={app.isDarkMode}
-                onToggleTheme={app.toggleTheme}
-                notifications={notifications.notifications}
-                onOpenNotifications={() => notifications.setIsNotificationsOpen(true)}
-                onOpenCommandPalette={() => app.setIsCommandPaletteOpen(true)}
-                isSidebarOpen={app.isSidebarOpen}
-                onToggleSidebar={app.toggleSidebar}
-                onLogout={handleLogout}
-              />
-
-              <main className="flex-1 overflow-y-auto custom-scrollbar px-3 sm:px-4 md:px-6 pb-6 sm:pb-8 pt-3 sm:pt-4">
-                <AnimatePresence mode="wait">
-                  <motion.div key={location.pathname} className="min-h-full" {...pageTransition}>
-                    {renderView()}
-                  </motion.div>
-                </AnimatePresence>
-              </main>
-            </div>
-
-            <NotificationPanel
-              isOpen={notifications.isNotificationsOpen}
-              onClose={() => notifications.setIsNotificationsOpen(false)}
-              notifications={notifications.notifications}
-              onClear={notifications.clearNotification}
-              onClearAll={notifications.clearAllNotifications}
-            />
-
-            <DeliveryAlarmModal
-              isOpen={notifications.showDeliveryAlarm}
-              onClose={() => notifications.setShowDeliveryAlarm(false)}
-              deliveries={notifications.deliveriesToday}
-              onAddToast={app.addToast}
-            />
-
-            <DataLossWarningModal
-              isOpen={!!app.dataLossWarning}
-              warning={app.dataLossWarning}
-              onDismiss={() => app.setDataLossWarning(null)}
-              onBackup={() => {
-                app.setDataLossWarning(null);
-                app.navigateTo('backups');
-              }}
-            />
-
-            <CommandPalette
-              isOpen={app.isCommandPaletteOpen}
-              onClose={() => app.setIsCommandPaletteOpen(false)}
-              onNavigate={app.navigateTo}
-            />
-
-            <EditingStatusOverlay onNavigate={app.navigateTo} />
-            <ToastContainer toasts={app.toasts} onRemove={app.removeToast} />
-          </div>
+            <AdminLayout>
+              <AnimatePresence mode="wait">
+                <motion.div key={location.pathname} className="min-h-full" {...pageTransition}>
+                  {renderView()}
+                </motion.div>
+              </AnimatePresence>
+            </AdminLayout>
           )}
         </>
       )}
+      <CookieBanner />
     </>
   );
 }
 
 export default function App() {
   return (
-    <Router>
-      <Suspense fallback={<LoadingFallback />}>
-        <Routes>
-          <Route path="/404" element={<NotFound />} />
-          <Route path="/500" element={<ServerError />} />
-          <Route path="/network-error" element={<NetworkError />} />
-          <Route path="*" element={<AppContent />} />
-        </Routes>
-      </Suspense>
-    </Router>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <Router>
+          <Suspense fallback={<LoadingFallback />}>
+            <Routes>
+              <Route path="/404" element={<NotFound />} />
+              <Route path="/500" element={<ServerError />} />
+              <Route path="/network-error" element={<NetworkError />} />
+              <Route path="*" element={<AppContent />} />
+            </Routes>
+          </Suspense>
+        </Router>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }

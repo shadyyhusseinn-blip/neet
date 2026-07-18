@@ -9,7 +9,14 @@ import {
   Image as ImageIcon,
   User,
   Home,
-  Settings
+  Settings,
+  Search,
+  Filter,
+  Grid,
+  List,
+  ZoomIn,
+  Maximize2,
+  X
 } from 'lucide-react';
 import { getClientData, signOut } from '../../services/clientAuth';
 import { motion, AnimatePresence } from 'motion/react';
@@ -23,6 +30,9 @@ export default function ClientPortal() {
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [likedPhotos, setLikedPhotos] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [selectedPhoto, setSelectedPhoto] = useState<number | null>(null);
 
   useEffect(() => {
     loadClientData();
@@ -82,6 +92,28 @@ export default function ClientPortal() {
     setLikedPhotos(newLiked);
   };
 
+  const handleShare = async (photoId: string) => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'صورة من معرضي',
+          text: 'شاهد هذه الصورة الرائعة',
+          url: window.location.href
+        });
+      } catch (error) {
+        console.error('Share failed:', error);
+      }
+    } else {
+      // Fallback: copy to clipboard
+      navigator.clipboard.writeText(window.location.href);
+    }
+  };
+
+  const filteredPhotos = [...Array(12)].filter((_, i) => {
+    if (!searchQuery) return true;
+    return i.toString().includes(searchQuery);
+  });
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
@@ -110,13 +142,21 @@ export default function ClientPortal() {
               <p className="text-slate-400 text-sm">معرض الصور الخاص بك</p>
             </div>
           </div>
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            onClick={handleLogout}
-            className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-all"
-          >
-            <LogOut size={20} className="text-white" />
-          </motion.button>
+          <div className="flex items-center gap-2">
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-all"
+            >
+              <Settings size={20} className="text-white" />
+            </motion.button>
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={handleLogout}
+              className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-all"
+            >
+              <LogOut size={20} className="text-white" />
+            </motion.button>
+          </div>
         </div>
       </div>
 
@@ -131,7 +171,21 @@ export default function ClientPortal() {
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <h2 className="text-2xl font-bold text-white mb-6">أحداثك</h2>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-white">أحداثك</h2>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input
+                      type="text"
+                      placeholder="بحث..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="bg-slate-900/50 border border-white/10 rounded-xl py-2 pr-10 pl-4 text-white placeholder-slate-400 focus:border-orange-500/50 focus:outline-none transition-colors w-64"
+                    />
+                  </div>
+                </div>
+              </div>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {events.map((event, index) => (
                   <motion.div
@@ -214,58 +268,121 @@ export default function ClientPortal() {
                         <h3 className="text-xl font-bold text-white">
                           {selectedFolder === 'hall' ? 'صور القاعة' : selectedFolder === 'session' ? 'صور الجلسة' : 'صور خارجية'}
                         </h3>
-                        <motion.button
-                          whileTap={{ scale: 0.95 }}
-                          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl text-white font-medium shadow-lg shadow-orange-500/30"
-                        >
-                          <Download size={18} />
-                          تحميل الكل
-                        </motion.button>
+                        <div className="flex items-center gap-2">
+                          <div className="relative">
+                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                            <input
+                              type="text"
+                              placeholder="بحث في الصور..."
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                              className="bg-slate-900/50 border border-white/10 rounded-xl py-2 pr-10 pl-4 text-white placeholder-slate-400 focus:border-orange-500/50 focus:outline-none transition-colors w-48"
+                            />
+                          </div>
+                          <motion.button
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+                            className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-all"
+                          >
+                            {viewMode === 'grid' ? <List size={20} className="text-white" /> : <Grid size={20} className="text-white" />}
+                          </motion.button>
+                          <motion.button
+                            whileTap={{ scale: 0.95 }}
+                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl text-white font-medium shadow-lg shadow-orange-500/30"
+                          >
+                            <Download size={18} />
+                            تحميل الكل
+                          </motion.button>
+                        </div>
                       </div>
                       
                       {/* Photos Grid */}
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {[...Array(12)].map((_, i) => (
-                          <motion.div
-                            key={i}
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ delay: i * 0.05 }}
-                            className="relative aspect-square bg-slate-900/50 border border-white/10 rounded-xl overflow-hidden group"
-                          >
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <ImageIcon size={32} className="text-slate-600" />
-                            </div>
-                            
-                            {/* Hover Overlay */}
-                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                              <motion.button
-                                whileTap={{ scale: 0.9 }}
-                                onClick={() => toggleLike(`photo-${i}`)}
-                                className={`p-2 rounded-full transition-colors ${
-                                  likedPhotos.has(`photo-${i}`) 
-                                    ? 'bg-red-500 text-white' 
-                                    : 'bg-white/20 text-white hover:bg-white/30'
-                                }`}
-                              >
-                                <Heart size={18} fill={likedPhotos.has(`photo-${i}`) ? 'currentColor' : 'none'} />
-                              </motion.button>
-                              <motion.button
-                                whileTap={{ scale: 0.9 }}
-                                className="p-2 rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors"
-                              >
-                                <Share2 size={18} />
-                              </motion.button>
-                              <motion.button
-                                whileTap={{ scale: 0.9 }}
-                                className="p-2 rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors"
-                              >
-                                <Download size={18} />
-                              </motion.button>
-                            </div>
-                          </motion.div>
-                        ))}
-                      </div>
+                      {viewMode === 'grid' ? (
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                          {filteredPhotos.map((_, i) => (
+                            <motion.div
+                              key={i}
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ delay: i * 0.05 }}
+                              className="relative aspect-square bg-slate-900/50 border border-white/10 rounded-xl overflow-hidden group cursor-pointer"
+                              onClick={() => setSelectedPhoto(i)}
+                            >
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <ImageIcon size={32} className="text-slate-600" />
+                              </div>
+                              
+                              {/* Hover Overlay */}
+                              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                                <motion.button
+                                  whileTap={{ scale: 0.9 }}
+                                  onClick={(e) => { e.stopPropagation(); toggleLike(`photo-${i}`); }}
+                                  className={`p-2 rounded-full transition-colors ${
+                                    likedPhotos.has(`photo-${i}`) 
+                                      ? 'bg-red-500 text-white' 
+                                      : 'bg-white/20 text-white hover:bg-white/30'
+                                  }`}
+                                >
+                                  <Heart size={18} fill={likedPhotos.has(`photo-${i}`) ? 'currentColor' : 'none'} />
+                                </motion.button>
+                                <motion.button
+                                  whileTap={{ scale: 0.9 }}
+                                  onClick={(e) => { e.stopPropagation(); handleShare(`photo-${i}`); }}
+                                  className="p-2 rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors"
+                                >
+                                  <Share2 size={18} />
+                                </motion.button>
+                                <motion.button
+                                  whileTap={{ scale: 0.9 }}
+                                  className="p-2 rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors"
+                                >
+                                  <Download size={18} />
+                                </motion.button>
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {filteredPhotos.map((_, i) => (
+                            <motion.div
+                              key={i}
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: i * 0.05 }}
+                              className="flex items-center gap-4 bg-slate-900/50 border border-white/10 rounded-xl p-4 hover:border-orange-500/30 transition-all group cursor-pointer"
+                              onClick={() => setSelectedPhoto(i)}
+                            >
+                              <div className="w-20 h-20 bg-slate-800/50 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <ImageIcon size={32} className="text-slate-600" />
+                              </div>
+                              <div className="flex-1">
+                                <h4 className="text-white font-medium">صورة {i + 1}</h4>
+                                <p className="text-slate-400 text-sm">تفاصيل الصورة</p>
+                              </div>
+                              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <motion.button
+                                  whileTap={{ scale: 0.9 }}
+                                  onClick={(e) => { e.stopPropagation(); toggleLike(`photo-${i}`); }}
+                                  className={`p-2 rounded-full transition-colors ${
+                                    likedPhotos.has(`photo-${i}`) 
+                                      ? 'bg-red-500 text-white' 
+                                      : 'bg-white/20 text-white hover:bg-white/30'
+                                  }`}
+                                >
+                                  <Heart size={18} fill={likedPhotos.has(`photo-${i}`) ? 'currentColor' : 'none'} />
+                                </motion.button>
+                                <motion.button
+                                  whileTap={{ scale: 0.9 }}
+                                  className="p-2 rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors"
+                                >
+                                  <Download size={18} />
+                                </motion.button>
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center h-64 bg-slate-900/30 border border-white/10 rounded-2xl">
@@ -279,6 +396,64 @@ export default function ClientPortal() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Photo Modal */}
+      <AnimatePresence>
+        {selectedPhoto !== null && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm"
+            onClick={() => setSelectedPhoto(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              className="relative max-w-4xl max-h-[90vh] w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={() => setSelectedPhoto(null)}
+                className="absolute -top-12 left-0 p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
+              >
+                <X size={24} className="text-white" />
+              </motion.button>
+              <div className="aspect-square bg-slate-900/50 border border-white/10 rounded-2xl flex items-center justify-center">
+                <ImageIcon size={64} className="text-slate-600" />
+              </div>
+              <div className="flex items-center justify-center gap-4 mt-4">
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => toggleLike(`photo-${selectedPhoto}`)}
+                  className={`p-3 rounded-full transition-colors ${
+                    likedPhotos.has(`photo-${selectedPhoto}`) 
+                      ? 'bg-red-500 text-white' 
+                      : 'bg-white/20 text-white hover:bg-white/30'
+                  }`}
+                >
+                  <Heart size={24} fill={likedPhotos.has(`photo-${selectedPhoto}`) ? 'currentColor' : 'none'} />
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => handleShare(`photo-${selectedPhoto}`)}
+                  className="p-3 rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors"
+                >
+                  <Share2 size={24} />
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  className="p-3 rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors"
+                >
+                  <Download size={24} />
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 z-20 bg-slate-900/95 backdrop-blur-xl border-t border-white/10 px-6 py-4">
