@@ -19,10 +19,18 @@ import {
   ChevronRight,
   ChevronLeft,
   Menu,
-  Bell
+  Bell,
+  Play,
+  Pause,
+  Maximize2,
+  SkipBack,
+  SkipForward,
+  CheckSquare,
+  Square
 } from 'lucide-react';
 import { getClientData, signOut } from '../../services/clientAuth';
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'sonner';
 
 export default function ClientPortal() {
   const { clientId } = useParams();
@@ -37,6 +45,17 @@ export default function ClientPortal() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedPhoto, setSelectedPhoto] = useState<number | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [slideshowMode, setSlideshowMode] = useState(false);
+  const [slideshowPlaying, setSlideshowPlaying] = useState(false);
+  const [slideshowInterval, setSlideshowInterval] = useState<NodeJS.Timeout | null>(null);
+  const [selectedPhotosForDownload, setSelectedPhotosForDownload] = useState<Set<number>>(new Set());
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
+  const [stats, setStats] = useState({
+    totalViews: 0,
+    totalDownloads: 0,
+    totalShares: 0,
+    totalLikes: 0
+  });
 
   useEffect(() => {
     loadClientData();
@@ -114,10 +133,108 @@ export default function ClientPortal() {
     }
   };
 
-  const filteredPhotos = [...Array(12)].filter((_, i) => {
+  const startSlideshow = () => {
+    setSlideshowMode(true);
+    setSlideshowPlaying(true);
+    if (selectedPhoto === null) setSelectedPhoto(0);
+    
+    const interval = setInterval(() => {
+      setSelectedPhoto(prev => {
+        if (prev === null) return 0;
+        return (prev + 1) % filteredPhotos.length;
+      });
+    }, 3000);
+    
+    setSlideshowInterval(interval);
+  };
+
+  const stopSlideshow = () => {
+    setSlideshowPlaying(false);
+    if (slideshowInterval) {
+      clearInterval(slideshowInterval);
+      setSlideshowInterval(null);
+    }
+  };
+
+  const toggleSlideshow = () => {
+    if (slideshowPlaying) {
+      stopSlideshow();
+    } else {
+      startSlideshow();
+    }
+  };
+
+  const nextPhoto = () => {
+    setSelectedPhoto(prev => {
+      if (prev === null) return 0;
+      return (prev + 1) % filteredPhotos.length;
+    });
+  };
+
+  const prevPhoto = () => {
+    setSelectedPhoto(prev => {
+      if (prev === null) return 0;
+      return (prev - 1 + filteredPhotos.length) % filteredPhotos.length;
+    });
+  };
+
+  const togglePhotoSelection = (photoIndex: number) => {
+    const newSelection = new Set(selectedPhotosForDownload);
+    if (newSelection.has(photoIndex)) {
+      newSelection.delete(photoIndex);
+    } else {
+      newSelection.add(photoIndex);
+    }
+    setSelectedPhotosForDownload(newSelection);
+  };
+
+  const selectAllPhotos = () => {
+    setSelectedPhotosForDownload(new Set(filteredPhotos.map((_, i) => i)));
+  };
+
+  const clearSelection = () => {
+    setSelectedPhotosForDownload(new Set());
+  };
+
+  const downloadSelectedPhotos = () => {
+    // In real implementation, this would download the selected photos
+    console.log('Downloading photos:', Array.from(selectedPhotosForDownload));
+    toast.success(`جاري تحميل ${selectedPhotosForDownload.size} صورة`);
+  };
+
+  const filterByDate = (photos: any[]) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    if (dateFilter === 'all') return photos;
+    
+    return photos.filter((_, i) => {
+      const photoDate = new Date(); // In real implementation, use actual photo date
+      if (dateFilter === 'today') {
+        return photoDate >= today;
+      } else if (dateFilter === 'week') {
+        return photoDate >= weekAgo;
+      } else if (dateFilter === 'month') {
+        return photoDate >= monthAgo;
+      }
+      return true;
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      if (slideshowInterval) {
+        clearInterval(slideshowInterval);
+      }
+    };
+  }, [slideshowInterval]);
+
+  const filteredPhotos = filterByDate([...Array(12)].filter((_, i) => {
     if (!searchQuery) return true;
     return i.toString().includes(searchQuery);
-  });
+  }));
 
   if (loading) {
     return (
@@ -353,32 +470,101 @@ export default function ClientPortal() {
                           </h3>
                           <p className="text-purple-300">{filteredPhotos.length} صورة</p>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <div className="relative">
-                            <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                            <input
-                              type="text"
-                              placeholder="بحث..."
-                              value={searchQuery}
-                              onChange={(e) => setSearchQuery(e.target.value)}
-                              className="bg-white/5 border border-white/10 rounded-xl py-3 pr-12 pl-4 text-white placeholder-slate-400 focus:border-purple-500/50 focus:outline-none transition-colors w-56"
-                            />
+                        
+                        {/* Stats Section */}
+                        <div className="flex items-center gap-6 bg-white/5 border border-white/10 rounded-2xl px-6 py-4">
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-white">{stats.totalViews}</div>
+                            <div className="text-xs text-slate-400">مشاهدات</div>
                           </div>
-                          <motion.button
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-                            className="p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-all"
-                          >
-                            {viewMode === 'grid' ? <List size={22} className="text-white" /> : <Grid size={22} className="text-white" />}
-                          </motion.button>
-                          <motion.button
-                            whileTap={{ scale: 0.95 }}
-                            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl text-white font-medium shadow-lg shadow-purple-500/30 hover:from-purple-600 hover:to-pink-600 transition-all"
-                          >
-                            <Download size={20} />
-                            تحميل الكل
-                          </motion.button>
+                          <div className="w-px h-8 bg-white/10" />
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-white">{stats.totalDownloads}</div>
+                            <div className="text-xs text-slate-400">تحميلات</div>
+                          </div>
+                          <div className="w-px h-8 bg-white/10" />
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-white">{stats.totalShares}</div>
+                            <div className="text-xs text-slate-400">مشاركات</div>
+                          </div>
+                          <div className="w-px h-8 bg-white/10" />
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-white">{stats.totalLikes}</div>
+                            <div className="text-xs text-slate-400">إعجابات</div>
+                          </div>
                         </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="relative">
+                          <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                          <input
+                            type="text"
+                            placeholder="بحث..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="bg-white/5 border border-white/10 rounded-xl py-3 pr-12 pl-4 text-white placeholder-slate-400 focus:border-purple-500/50 focus:outline-none transition-colors w-56"
+                          />
+                        </div>
+                        <select
+                          value={dateFilter}
+                          onChange={(e) => setDateFilter(e.target.value as any)}
+                          className="bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:border-purple-500/50 focus:outline-none transition-colors"
+                        >
+                          <option value="all">كل الأوقات</option>
+                          <option value="today">اليوم</option>
+                          <option value="week">آخر أسبوع</option>
+                          <option value="month">آخر شهر</option>
+                        </select>
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+                          className="p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-all"
+                        >
+                          {viewMode === 'grid' ? <List size={22} className="text-white" /> : <Grid size={22} className="text-white" />}
+                        </motion.button>
+                        {selectedPhotosForDownload.size > 0 && (
+                          <>
+                            <motion.button
+                              whileTap={{ scale: 0.95 }}
+                              onClick={clearSelection}
+                              className="p-3 bg-red-500/20 text-red-400 rounded-xl hover:bg-red-500/30 transition-all"
+                            >
+                              <X size={22} />
+                            </motion.button>
+                            <motion.button
+                              whileTap={{ scale: 0.95 }}
+                              onClick={downloadSelectedPhotos}
+                              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl text-white font-medium shadow-lg shadow-purple-500/30 hover:from-purple-600 hover:to-pink-600 transition-all"
+                            >
+                              <Download size={20} />
+                              تحميل {selectedPhotosForDownload.size}
+                            </motion.button>
+                          </>
+                        )}
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onClick={startSlideshow}
+                          className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl text-white font-medium shadow-lg shadow-purple-500/30 hover:from-purple-600 hover:to-pink-600 transition-all"
+                        >
+                          <Play size={20} />
+                          عرض شرائح
+                        </motion.button>
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onClick={selectAllPhotos}
+                          className="p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-all"
+                          title="تحديد الكل"
+                        >
+                          <CheckSquare size={22} className="text-white" />
+                        </motion.button>
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl text-white font-medium shadow-lg shadow-purple-500/30 hover:from-purple-600 hover:to-pink-600 transition-all"
+                        >
+                          <Download size={20} />
+                          تحميل الكل
+                        </motion.button>
                       </div>
                       
                       {/* Photos Grid */}
@@ -396,6 +582,19 @@ export default function ClientPortal() {
                               <div className="absolute inset-0 flex items-center justify-center">
                                 <ImageIcon size={40} className="text-slate-600" />
                               </div>
+                              
+                              {/* Selection Checkbox */}
+                              <motion.button
+                                whileTap={{ scale: 0.9 }}
+                                onClick={(e) => { e.stopPropagation(); togglePhotoSelection(i); }}
+                                className={`absolute top-3 right-3 p-2 rounded-lg transition-all ${
+                                  selectedPhotosForDownload.has(i)
+                                    ? 'bg-purple-500 text-white'
+                                    : 'bg-white/20 text-white hover:bg-white/30'
+                                }`}
+                              >
+                                {selectedPhotosForDownload.has(i) ? <CheckSquare size={18} /> : <Square size={18} />}
+                              </motion.button>
                               
                               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center gap-3 pb-4">
                                 <motion.button
@@ -437,6 +636,17 @@ export default function ClientPortal() {
                               className="flex items-center gap-6 bg-white/5 border border-white/10 rounded-2xl p-6 hover:border-purple-500/50 transition-all group cursor-pointer"
                               onClick={() => setSelectedPhoto(i)}
                             >
+                              <motion.button
+                                whileTap={{ scale: 0.9 }}
+                                onClick={(e) => { e.stopPropagation(); togglePhotoSelection(i); }}
+                                className={`p-2 rounded-lg transition-all ${
+                                  selectedPhotosForDownload.has(i)
+                                    ? 'bg-purple-500 text-white'
+                                    : 'bg-white/20 text-white hover:bg-white/30'
+                                }`}
+                              >
+                                {selectedPhotosForDownload.has(i) ? <CheckSquare size={18} /> : <Square size={18} />}
+                              </motion.button>
                               <div className="w-28 h-28 bg-white/10 rounded-xl flex items-center justify-center flex-shrink-0">
                                 <ImageIcon size={40} className="text-slate-600" />
                               </div>
@@ -536,12 +746,53 @@ export default function ClientPortal() {
                   </motion.button>
                   <motion.button
                     whileTap={{ scale: 0.9 }}
+                    onClick={toggleSlideshow}
+                    className={`p-4 rounded-xl transition-all ${
+                      slideshowPlaying 
+                        ? 'bg-red-500 text-white shadow-lg shadow-red-500/30' 
+                        : 'bg-white/10 text-white hover:bg-white/20'
+                    }`}
+                  >
+                    {slideshowPlaying ? <Pause size={28} /> : <Play size={28} />}
+                  </motion.button>
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setSlideshowMode(false)}
+                    className="p-4 bg-white/10 text-white rounded-xl hover:bg-white/20 transition-all"
+                  >
+                    <Maximize2 size={28} />
+                  </motion.button>
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
                     className="p-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl text-white hover:from-purple-600 hover:to-pink-600 transition-all shadow-lg shadow-purple-500/30"
                   >
                     <Download size={28} />
                   </motion.button>
                 </div>
               </div>
+              
+              {/* Slideshow Navigation */}
+              {slideshowMode && (
+                <div className="flex items-center justify-center gap-4 mt-6">
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={prevPhoto}
+                    className="p-4 bg-white/10 text-white rounded-xl hover:bg-white/20 transition-all"
+                  >
+                    <SkipBack size={32} />
+                  </motion.button>
+                  <div className="text-white text-lg">
+                    {selectedPhoto + 1} / {filteredPhotos.length}
+                  </div>
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={nextPhoto}
+                    className="p-4 bg-white/10 text-white rounded-xl hover:bg-white/20 transition-all"
+                  >
+                    <SkipForward size={32} />
+                  </motion.button>
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}
