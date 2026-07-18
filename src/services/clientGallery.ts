@@ -1,6 +1,7 @@
-import { ref, uploadBytes, getDownloadURL, deleteObject, listAll } from 'firebase/storage';
-import { doc, setDoc, getDoc, updateDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { ref, deleteObject } from 'firebase/storage';
+import { doc, setDoc, getDoc, updateDoc, collection, getDocs, query, where, deleteDoc } from 'firebase/firestore';
 import { firebaseService } from './firebase';
+import { unifiedUploadService } from './unifiedUpload';
 
 export interface Photo {
   id: string;
@@ -40,16 +41,22 @@ export async function uploadPhoto(
   metadata?: any
 ): Promise<Photo> {
   try {
-    const storage = firebaseService.getStorage();
     const db = firebaseService.getDB();
 
     const fileName = `${Date.now()}_${file.name}`;
     
-    // Upload raw image
+    // Upload raw image using unified service
     const rawPath = `clients/${clientId}/events/${eventId}/${folder}/raw/${fileName}`;
-    const rawRef = ref(storage, rawPath);
-    await uploadBytes(rawRef, file);
-    const rawUrl = await getDownloadURL(rawRef);
+    const result = await unifiedUploadService.uploadFile(file, {
+      firebasePath: rawPath,
+      compress: true,
+    }, 'client-gallery');
+    
+    if (!result.success || !result.url) {
+      throw new Error(result.error || 'Upload failed');
+    }
+    
+    const rawUrl = result.url;
 
     // Create photo document
     const photoData: Photo = {
@@ -211,7 +218,7 @@ export async function deletePhoto(photoId: string): Promise<void> {
     await deleteObject(ref(storage, photo.urls.thumbnail));
 
     // Delete from database
-    await deleteObject(doc(db, 'photos', photoId));
+    await deleteDoc(doc(db, 'photos', photoId));
   } catch (error) {
     console.error('Delete photo error:', error);
     throw error;

@@ -1,8 +1,7 @@
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Upload, X, Check, AlertCircle, Image as ImageIcon, Loader2 } from 'lucide-react';
-import imageCompression from 'browser-image-compression';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { unifiedUploadService } from '../../services/unifiedUpload';
 
 interface UploadedImage {
   id: string;
@@ -33,10 +32,9 @@ export default function PhotographerImageUpload({
   compressionOptions = {
     maxSizeMB: 0.5,
     maxWidthOrHeight: 1920,
-    useWebWorker: true
+    useWebWorker: false
   }
 }: PhotographerImageUploadProps) {
-  const storage = getStorage();
   const [files, setFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [uploadStatus, setUploadStatus] = useState<Record<string, 'pending' | 'compressing' | 'uploading' | 'completed' | 'error'>>({});
@@ -54,11 +52,12 @@ export default function PhotographerImageUpload({
   const compressImage = async (file: File): Promise<{ compressedFile: File; originalSize: number; compressedSize: number }> => {
     try {
       const originalSize = file.size;
-      const compressedFile = await imageCompression(file, compressionOptions);
+      // const compressedFile = await imageCompression(file, compressionOptions);
+      const compressedFile = file; // Skip compression for now
       const compressedSize = compressedFile.size;
 
       console.log(`Original: ${formatFileSize(originalSize)} → Compressed: ${formatFileSize(compressedSize)}`);
-      
+
       return { compressedFile, originalSize, compressedSize };
     } catch (error) {
       console.error('Error compressing image:', error);
@@ -67,10 +66,19 @@ export default function PhotographerImageUpload({
   };
 
   const uploadToStorage = async (file: File, path: string, fileId: string): Promise<string> => {
-    const storageRef = ref(storage, path);
-    const snapshot = await uploadBytes(storageRef, file);
-    const url = await getDownloadURL(snapshot.ref);
-    return url;
+    const result = await unifiedUploadService.uploadFile(file, {
+      firebasePath: path,
+      onProgress: (progress) => {
+        setUploadProgress(prev => ({ ...prev, [fileId]: progress }));
+      },
+      compress: true,
+    }, 'booking');
+    
+    if (!result.success || !result.url) {
+      throw new Error(result.error || 'Upload failed');
+    }
+    
+    return result.url;
   };
 
   const handleFileSelect = useCallback(async (selectedFiles: FileList | null) => {
@@ -167,7 +175,7 @@ export default function PhotographerImageUpload({
       case 'compressing':
         return <Loader2 size={16} className="animate-spin text-blue-400" />;
       case 'uploading':
-        return <Loader2 size={16} className="animate-spin text-purple-400" />;
+        return <Loader2 size={16} className="animate-spin text-slate-400" />;
       case 'completed':
         return <Check size={16} className="text-green-400" />;
       case 'error':
@@ -184,7 +192,7 @@ export default function PhotographerImageUpload({
   return (
     <div className="w-full bg-[#050508] text-white font-['Cairo','Tajawal',sans-serif]" dir="rtl">
       {/* Upload Area */}
-      <div className="border-2 border-dashed border-white/20 rounded-2xl p-8 hover:border-purple-500/50 transition-colors">
+      <div className="border-2 border-dashed border-white/20 rounded-2xl p-8 hover:border-blue-500/50 transition-colors">
         <input
           type="file"
           id="image-upload"
@@ -202,7 +210,7 @@ export default function PhotographerImageUpload({
           <motion.div
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mb-4"
+            className="w-20 h-20 rounded-full bg-gradient-to-br from-slate-500 to-pink-500 flex items-center justify-center mb-4"
           >
             <Upload size={32} className="text-white" />
           </motion.div>
@@ -245,7 +253,7 @@ export default function PhotographerImageUpload({
           </div>
           <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
             <motion.div
-              className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
+              className="h-full bg-gradient-to-r from-slate-500 to-pink-500"
               initial={{ width: 0 }}
               animate={{ width: `${totalProgress}%` }}
               transition={{ duration: 0.3 }}
@@ -332,7 +340,7 @@ export default function PhotographerImageUpload({
                   <div className="text-sm text-white font-semibold mb-1">{progress}%</div>
                   <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
                     <motion.div
-                      className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
+                      className="h-full bg-gradient-to-r from-slate-500 to-pink-500"
                       initial={{ width: 0 }}
                       animate={{ width: `${progress}%` }}
                       transition={{ duration: 0.3 }}
@@ -350,7 +358,7 @@ export default function PhotographerImageUpload({
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mt-6 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-xl p-4"
+          className="mt-6 bg-gradient-to-r from-slate-500/20 to-pink-500/20 border border-blue-500/30 rounded-xl p-4"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
