@@ -318,6 +318,18 @@ export default function UnifiedLoginPage() {
                     <span>تسجيل الدخول</span>
                   )}
                 </button>
+
+                {/* Developer Quick Access */}
+                <motion.button
+                  type="button"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleDeveloperLogin}
+                  className="w-full py-2 sm:py-3 bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-xl font-medium hover:border-purple-500/50 transition-all flex items-center justify-center gap-2 text-sm sm:text-base text-purple-400"
+                >
+                  <Code size={16} />
+                  <span>دخول المطور المباشر</span>
+                </motion.button>
               </form>
             ) : selectedPortal === 'staff' ? (
               <form onSubmit={handleStaffLogin} className="space-y-4 sm:space-y-6">
@@ -397,6 +409,18 @@ export default function UnifiedLoginPage() {
                     <span>تسجيل الدخول</span>
                   )}
                 </button>
+
+                {/* Developer Quick Access */}
+                <motion.button
+                  type="button"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleDeveloperLogin}
+                  className="w-full py-2 sm:py-3 bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-xl font-medium hover:border-purple-500/50 transition-all flex items-center justify-center gap-2 text-sm sm:text-base text-purple-400"
+                >
+                  <Code size={16} />
+                  <span>دخول المطور المباشر</span>
+                </motion.button>
               </form>
             ) : (
               <form onSubmit={handleClientLogin} className="space-y-4 sm:space-y-6">
@@ -476,6 +500,18 @@ export default function UnifiedLoginPage() {
                     <span>تسجيل الدخول</span>
                   )}
                 </button>
+
+                {/* Developer Quick Access */}
+                <motion.button
+                  type="button"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleDeveloperLogin}
+                  className="w-full py-2 sm:py-3 bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-xl font-medium hover:border-purple-500/50 transition-all flex items-center justify-center gap-2 text-sm sm:text-base text-purple-400"
+                >
+                  <Code size={16} />
+                  <span>دخول المطور المباشر</span>
+                </motion.button>
               </form>
             )}
           </motion.div>
@@ -527,7 +563,7 @@ export default function UnifiedLoginPage() {
         </motion.div>
 
         {/* Portals Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
           {/* Admin Portal */}
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -588,24 +624,6 @@ export default function UnifiedLoginPage() {
             </div>
           </motion.button>
         </div>
-
-        {/* Developer Quick Access */}
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={handleDeveloperLogin}
-          className="w-full bg-gradient-to-r from-purple-600/20 to-pink-600/20 backdrop-blur-xl border border-purple-500/30 rounded-2xl md:rounded-3xl p-4 md:p-6 hover:border-purple-500/50 transition-all duration-300 text-right cursor-pointer shadow-xl"
-        >
-          <div className="flex items-center justify-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
-              <Code size={24} className="text-white" />
-            </div>
-            <div className="text-center">
-              <h3 className="text-lg sm:text-xl font-bold text-white">دخول المطور المباشر</h3>
-              <p className="text-slate-400 text-xs sm:text-sm">دخول سريع بدون كلمة مرور</p>
-            </div>
-          </div>
-        </motion.button>
 
         {/* Footer */}
         <div className="text-center mt-6 sm:mt-12 text-gray-500 text-xs sm:text-sm">
