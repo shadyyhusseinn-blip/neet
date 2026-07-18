@@ -132,9 +132,9 @@ export default function UnifiedLoginPage() {
     }
   };
 
-  const handleDeveloperLogin = () => {
+  const handleDeveloperLogin = (destination: string) => {
     toast.success('تم الدخول كالمطور ✅');
-    window.location.href = '/admin-general';
+    window.location.href = destination;
   };
 
   const handleClientLogin = async (e: React.FormEvent) => {
@@ -324,7 +324,7 @@ export default function UnifiedLoginPage() {
                   type="button"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={handleDeveloperLogin}
+                  onClick={() => handleDeveloperLogin('/admin-general')}
                   className="w-full py-2 sm:py-3 bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-xl font-medium hover:border-purple-500/50 transition-all flex items-center justify-center gap-2 text-sm sm:text-base text-purple-400"
                 >
                   <Code size={16} />
@@ -415,7 +415,7 @@ export default function UnifiedLoginPage() {
                   type="button"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={handleDeveloperLogin}
+                  onClick={() => handleDeveloperLogin('/adminstaff')}
                   className="w-full py-2 sm:py-3 bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-xl font-medium hover:border-purple-500/50 transition-all flex items-center justify-center gap-2 text-sm sm:text-base text-purple-400"
                 >
                   <Code size={16} />
@@ -506,7 +506,7 @@ export default function UnifiedLoginPage() {
                   type="button"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={handleDeveloperLogin}
+                  onClick={() => handleDeveloperLogin('/client-portal')}
                   className="w-full py-2 sm:py-3 bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-xl font-medium hover:border-purple-500/50 transition-all flex items-center justify-center gap-2 text-sm sm:text-base text-purple-400"
                 >
                   <Code size={16} />
