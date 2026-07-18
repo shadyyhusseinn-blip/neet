@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense, Component, ReactNode, useState } from 'react';
+import { useEffect, lazy, Suspense, Component, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from './hooks/useApp';
@@ -7,10 +7,9 @@ import { useAuthStore } from './stores/authStore';
 import { storage } from './services/storage';
 import { firebaseService } from './services/firebase';
 import { firestoreSync } from './services/firestoreSync';
-import { audioService } from './services/audio';
 import { pushNotificationService } from './services/pushNotifications';
 import { log } from './core/logger';
-import { RefreshCw, AlertTriangle, ChevronRight, ChevronLeft } from 'lucide-react';
+import { RefreshCw, AlertTriangle } from 'lucide-react';
 import { ThemeProvider } from './contexts/ThemeContext';
 
 // Global Error Boundary Component
@@ -161,74 +160,6 @@ const LoadingFallback = () => (
   </div>
 );
 
-// Universal Navigation Topbar Component
-function UniversalNavigationTopbar() {
-  const navigate = useNavigate();
-  const [canGoBack, setCanGoBack] = useState(false);
-  const [canGoForward, setCanGoForward] = useState(false);
-
-  useEffect(() => {
-    const updateNavigationState = () => {
-      setCanGoBack(window.history.length > 1);
-      setCanGoForward(window.history.state?.forward !== null);
-    };
-
-    updateNavigationState();
-    window.addEventListener('popstate', updateNavigationState);
-    return () => window.removeEventListener('popstate', updateNavigationState);
-  }, []);
-
-  const handleBack = () => {
-    if (canGoBack) {
-      if (!audioService.getMuteState()) audioService.playClick();
-      navigate(-1);
-    }
-  };
-
-  const handleForward = () => {
-    if (canGoForward) {
-      if (!audioService.getMuteState()) audioService.playClick();
-      navigate(1);
-    }
-  };
-
-  return (
-    <div className="fixed top-4 left-4 z-[9999] flex gap-2">
-      <motion.button
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-        onClick={handleBack}
-        disabled={!canGoBack}
-        className={`
-          w-10 h-10 rounded-full backdrop-blur-xl border flex items-center justify-center transition-all duration-300
-          ${canGoBack 
-            ? 'bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30' 
-            : 'bg-white/5 border-white/5 text-slate-600 cursor-not-allowed opacity-50'
-          }
-        `}
-        title="السابق"
-      >
-        <ChevronRight size={20} />
-      </motion.button>
-      <motion.button
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-        onClick={handleForward}
-        disabled={!canGoForward}
-        className={`
-          w-10 h-10 rounded-full backdrop-blur-xl border flex items-center justify-center transition-all duration-300
-          ${canGoForward 
-            ? 'bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30' 
-            : 'bg-white/5 border-white/5 text-slate-600 cursor-not-allowed opacity-50'
-          }
-        `}
-        title="التالي"
-      >
-        <ChevronLeft size={20} />
-      </motion.button>
-    </div>
-  );
-}
 
 const pageTransition = {
   initial: { opacity: 0, y: 14, filter: 'blur(6px)' },
@@ -508,7 +439,6 @@ function AppContent() {
 
   return (
     <>
-      <UniversalNavigationTopbar />
       {isLoading && !isPublicRoute ? (
         <div className="min-h-screen bg-[#0B0B0F] text-white flex items-center justify-center">
           <div className="text-center">
