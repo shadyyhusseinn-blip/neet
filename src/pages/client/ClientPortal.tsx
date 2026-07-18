@@ -57,6 +57,16 @@ export default function ClientPortal() {
     totalLikes: 0
   });
 
+  // Folder definitions with icons and names
+  const folderDefinitions = {
+    hall: { name: 'صور القاعة', icon: '🏛️', color: 'from-purple-500 to-indigo-500' },
+    session: { name: 'صور الجلسة', icon: '📸', color: 'from-pink-500 to-rose-500' },
+    outdoor: { name: 'صور خارجية', icon: '🌳', color: 'from-green-500 to-emerald-500' },
+    reels: { name: 'ريلز', icon: '🎬', color: 'from-orange-500 to-red-500' },
+    details: { name: 'تفاصيل', icon: '✨', color: 'from-yellow-500 to-amber-500' },
+    video: { name: 'فيديو', icon: '🎥', color: 'from-blue-500 to-cyan-500' }
+  };
+
   useEffect(() => {
     loadClientData();
   }, [clientId]);
@@ -74,7 +84,7 @@ export default function ClientPortal() {
           title: 'فرح أحمد ومحمد',
           date: '2024-01-15',
           type: 'wedding',
-          folders: ['hall', 'session', 'outdoor'],
+          folders: ['hall', 'session', 'outdoor', 'reels', 'details'],
           coverImage: '',
           totalPhotos: 150,
           rating: 5
@@ -430,6 +440,47 @@ export default function ClientPortal() {
                 العودة للأحداث
               </motion.button>
 
+              {/* Quick Access Folders */}
+              <div className="mb-8">
+                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                  <FolderOpen size={24} className="text-purple-400" />
+                  الأقسام السريعة
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                  {events.find((e) => e.id === selectedEvent)?.folders.map((folder: string) => {
+                    const folderDef = folderDefinitions[folder as keyof typeof folderDefinitions];
+                    if (!folderDef) return null;
+                    
+                    return (
+                      <motion.button
+                        key={folder}
+                        whileTap={{ scale: 0.95 }}
+                        whileHover={{ scale: 1.05, y: -5 }}
+                        onClick={() => setSelectedFolder(folder)}
+                        className={`relative p-6 rounded-2xl border transition-all ${
+                          selectedFolder === folder
+                            ? `bg-gradient-to-br ${folderDef.color} border-white/30 shadow-lg`
+                            : 'bg-white/5 border-white/10 hover:border-white/30 hover:bg-white/10'
+                        }`}
+                      >
+                        <div className="flex flex-col items-center gap-3">
+                          <span className="text-4xl">{folderDef.icon}</span>
+                          <span className="text-white font-medium text-center">{folderDef.name}</span>
+                        </div>
+                        {selectedFolder === folder && (
+                          <motion.div
+                            layoutId="selectedFolder"
+                            className="absolute inset-0 border-2 border-white/50 rounded-2xl"
+                            initial={false}
+                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                          />
+                        )}
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="grid lg:grid-cols-4 gap-8">
                 {/* Folders Sidebar */}
                 <div className="lg:col-span-1">
@@ -439,22 +490,27 @@ export default function ClientPortal() {
                       المجلدات
                     </h3>
                     <div className="space-y-3">
-                      {events.find((e) => e.id === selectedEvent)?.folders.map((folder: string) => (
-                        <motion.button
-                          key={folder}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={() => setSelectedFolder(folder)}
-                          className={`w-full flex items-center gap-4 p-5 rounded-2xl transition-all ${
-                            selectedFolder === folder
-                              ? 'bg-gradient-to-r from-purple-500/30 to-pink-500/30 border border-purple-500/50 text-white shadow-lg shadow-purple-500/20'
-                              : 'bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:border-purple-500/30'
-                          }`}
-                        >
-                          <FolderOpen size={22} />
-                          <span className="font-medium text-lg">{folder === 'hall' ? 'القاعة' : folder === 'session' ? 'الجلسة' : 'خارجي'}</span>
-                          {selectedFolder === folder && <ChevronLeft size={20} className="mr-auto" />}
-                        </motion.button>
-                      ))}
+                      {events.find((e) => e.id === selectedEvent)?.folders.map((folder: string) => {
+                        const folderDef = folderDefinitions[folder as keyof typeof folderDefinitions];
+                        if (!folderDef) return null;
+                        
+                        return (
+                          <motion.button
+                            key={folder}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => setSelectedFolder(folder)}
+                            className={`w-full flex items-center gap-4 p-5 rounded-2xl transition-all ${
+                              selectedFolder === folder
+                                ? `bg-gradient-to-r ${folderDef.color} border border-white/20 text-white shadow-lg`
+                                : 'bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:border-purple-500/30'
+                            }`}
+                          >
+                            <span className="text-3xl">{folderDef.icon}</span>
+                            <span className="font-medium text-lg">{folderDef.name}</span>
+                            {selectedFolder === folder && <ChevronLeft size={20} className="mr-auto" />}
+                          </motion.button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -466,7 +522,7 @@ export default function ClientPortal() {
                       <div className="flex items-center justify-between mb-8">
                         <div>
                           <h3 className="text-2xl font-bold text-white mb-2">
-                            {selectedFolder === 'hall' ? 'صور القاعة' : selectedFolder === 'session' ? 'صور الجلسة' : 'صور خارجية'}
+                            {folderDefinitions[selectedFolder as keyof typeof folderDefinitions]?.name || 'صور'}
                           </h3>
                           <p className="text-purple-300">{filteredPhotos.length} صورة</p>
                         </div>
