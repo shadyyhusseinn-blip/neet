@@ -1,317 +1,410 @@
-import React from 'react';
-import { motion } from 'motion/react';
-import { Camera, Heart, Award, Users, Star, Eye, Phone, ArrowRight } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import VideoIntro from '../../components/public/VideoIntro';
-import Membership from '../../components/public/Membership';
-import GiftCards from '../../components/public/GiftCards';
-import InstagramFeed from '../../components/public/InstagramFeed';
-import WeatherWidget from '../../components/public/WeatherWidget';
-
-const STATS = [
-  { icon: Heart, value: '500+', label: 'زفاف ناجح', color: 'text-pink-400', bg: 'from-pink-500/20 to-pink-600/20' },
-  { icon: Award, value: '10+', label: 'سنوات خبرة', color: 'text-purple-400', bg: 'from-purple-500/20 to-purple-600/20' },
-  { icon: Users, value: '1000+', label: 'عميل سعيد', color: 'text-amber-400', bg: 'from-amber-500/20 to-amber-600/20' },
-  { icon: Star, value: '4.9', label: 'تقييم العملاء', color: 'text-emerald-400', bg: 'from-emerald-500/20 to-emerald-600/20' },
-];
-
-const FEATURES = [
-  { icon: Star, title: 'جودة فائقة', desc: 'تصوير احترافي بأحدث الكاميرات' },
-  { icon: Camera, title: 'سرعة التسليم', desc: 'استلام صورك في وقت قياسي' },
-  { icon: Heart, title: 'أسعار تنافسية', desc: 'باقات تناسب جميع الميزانيات' },
-];
-
-const content = {
-  tagline: 'مصور محترف لحفظ ذكرياتك الثمينة',
-  description: 'نحول لحظاتك إلى ذكريات خالدة بلمسة فنية وإبداعية'
-};
-
-const GALLERY_IMAGES = [
-  'https://images.unsplash.com/photo-1519741497674-611481863552?w=400',
-  'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=400',
-  'https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?w=400',
-  'https://images.unsplash.com/photo-1537633552985-df8429e8048b?w=400'
-];
+import { motion, AnimatePresence } from 'motion/react';
+import { Star, Eye, Phone, Lock, Camera, MessageSquare, Sparkles, Heart, Award, Zap, ArrowRight } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { googleDriveService } from '../../services/googleDrive';
+import { toast } from 'sonner';
+import { audioService } from '../../services/audio';
+import { confettiService } from '../../services/confetti';
+import { collection, getDocs, query, where, limit } from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore';
+import { usePWAInstall } from '../../hooks/usePWAInstall';
+import AIChat from '../../components/shared/AIChat';
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [backgroundImages, setBackgroundImages] = useState<string[]>([]);
+  const [currentBgIndex, setCurrentBgIndex] = useState(0);
+  const { isInstallable, promptInstall } = usePWAInstall();
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState(0);
+
+  // Show install prompt if installable
+  useEffect(() => {
+    if (isInstallable) {
+      setShowInstallPrompt(true);
+    }
+  }, [isInstallable]);
+
+  const handleInstall = async () => {
+    await promptInstall();
+    setShowInstallPrompt(false);
+  };
+
+  const dismissInstallPrompt = () => {
+    setShowInstallPrompt(false);
+  };
+
+  // Load gallery cover images from Firestore
+  useEffect(() => {
+    const loadGalleryImages = async () => {
+      try {
+        const db = getFirestore();
+        const galleriesRef = collection(db, 'client-galleries');
+        const q = query(galleriesRef, where('coverImage', '!=', null), limit(10));
+        const querySnapshot = await getDocs(q);
+        const images = querySnapshot.docs
+          .map(doc => doc.data().coverImage)
+          .filter((img): img is string => img !== undefined && img !== null);
+        
+        if (images.length > 0) {
+          setBackgroundImages(images);
+        }
+      } catch (error) {
+        console.error('Error loading gallery images:', error);
+      }
+    };
+
+    loadGalleryImages();
+  }, []);
+
+  // Auto-rotate background images every 5 seconds
+  useEffect(() => {
+    if (backgroundImages.length > 1) {
+      const interval = setInterval(() => {
+        setCurrentBgIndex(prev => (prev + 1) % backgroundImages.length);
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+    return undefined;
+  }, [backgroundImages.length]);
+
+  // Auto-rotate sections
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveSection(prev => (prev + 1) % 3);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const code = searchParams.get('code');
+    const state = searchParams.get('state');
+    if (code) {
+      handleOAuthCallback(code, state);
+    }
+  }, [searchParams]);
+
+  const handleOAuthCallback = async (code: string, redirectPath?: string | null) => {
+    try {
+      await googleDriveService.handleCallback(code);
+      googleDriveService.reloadTokens();
+      if (!audioService.getMuteState()) audioService.playClick();
+      confettiService.fireSides();
+      toast.success('تم ربط Google Drive بنجاح ✅');
+      const targetPath = redirectPath || '/admin/google-drive-management';
+      navigate(targetPath, { replace: true });
+    } catch (error) {
+      console.error('OAuth callback error:', error);
+      toast.error('فشل ربط Google Drive');
+      navigate('/', { replace: true });
+    }
+  };
+
+  const sections = [
+    {
+      title: "تصوير احترافي",
+      description: "نوثق أجمل لحظاتك بأعلى جودة",
+      icon: Camera,
+      color: "from-pink-500 to-rose-500",
+      action: () => navigate('/booking-wizard')
+    },
+    {
+      title: "معارض إبداعية",
+      description: "استعرض أعمالنا الفنية",
+      icon: Eye,
+      color: "from-blue-500 to-cyan-500",
+      action: () => navigate('/portfolio')
+    },
+    {
+      title: "باقات مميزة",
+      description: "اختر الباقة المناسبة لك",
+      icon: Star,
+      color: "from-emerald-500 to-teal-500",
+      action: () => navigate('/packages')
+    }
+  ];
 
   return (
-    <div className="min-h-screen bg-[#050508] text-white font-['Cairo','Tajawal',sans-serif]" dir="rtl">
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0f172a] via-[#1e1b4b] to-[#050508]" />
-        <motion.div
-          animate={{
-            scale: [1, 1.5, 1],
-            opacity: [0.2, 0.4, 0.2],
-            rotate: [0, 180, 360],
-          }}
-          transition={{
-            duration: 12,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-          className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-gradient-to-r from-purple-600/30 to-pink-600/30 rounded-full blur-[120px]"
-        />
-        <motion.div
-          animate={{
-            scale: [1, 1.6, 1],
-            opacity: [0.15, 0.35, 0.15],
-            rotate: [360, 180, 0],
-          }}
-          transition={{
-            duration: 15,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 2
-          }}
-          className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-gradient-to-r from-indigo-600/25 to-purple-600/25 rounded-full blur-[140px]"
-        />
-        <motion.div
-          animate={{
-            scale: [1, 1.4, 1],
-            opacity: [0.1, 0.3, 0.1],
-          }}
-          transition={{
-            duration: 10,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 4
-          }}
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-gradient-to-r from-pink-600/20 to-amber-600/20 rounded-full blur-[100px]"
-        />
+    <div className="min-h-screen w-screen overflow-hidden bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 text-white font-['Cairo','Tajawal',sans-serif] relative" dir="rtl">
+      {/* Install Prompt Modal */}
+      <AnimatePresence>
+        {showInstallPrompt && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="w-full max-w-md bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 border border-purple-500/30 rounded-3xl p-8 shadow-2xl shadow-purple-500/20"
+            >
+              <div className="text-center">
+                <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-purple-500 via-pink-500 to-rose-500 flex items-center justify-center shadow-xl shadow-purple-500/50">
+                  <Sparkles size={40} className="text-white" />
+                </div>
+                <h2 className="text-2xl font-bold text-white mb-3">ثبت التطبيق الآن!</h2>
+                <p className="text-slate-400 text-sm mb-6">
+                  احصل على تجربة أفضل مع Sh-ph على جهازك
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleInstall}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-bold hover:from-purple-600 hover:to-pink-600 transition-all shadow-lg shadow-purple-500/30"
+                  >
+                    تثبيت
+                  </button>
+                  <button
+                    onClick={dismissInstallPrompt}
+                    className="flex-1 px-6 py-3 bg-white/10 text-white rounded-xl font-bold hover:bg-white/20 transition-all border border-white/20"
+                  >
+                    لاحقاً
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Dynamic Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        <AnimatePresence mode="wait">
+          {backgroundImages.length > 0 ? (
+            <motion.img
+              key={currentBgIndex}
+              src={backgroundImages[currentBgIndex]}
+              alt="Gallery Background"
+              initial={{ opacity: 0, scale: 1.2 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.2 }}
+              transition={{ duration: 2, ease: "easeInOut" }}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(120,0,255,0.1),transparent_50%)]" />
+            </div>
+          )}
+        </AnimatePresence>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/60 backdrop-blur-[2px]" />
       </div>
 
-      <div className="relative z-10 text-center px-4 max-w-7xl mx-auto pt-24 pb-32">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, type: "spring" }}
-          className="mb-12"
-        >
+      {/* Floating Particles */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        {[...Array(20)].map((_, i) => (
           <motion.div
+            key={i}
+            className="absolute w-2 h-2 bg-purple-500/30 rounded-full"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+            }}
             animate={{
-              rotate: [0, 360],
+              y: [0, -100, 0],
+              opacity: [0, 1, 0],
+              scale: [1, 1.5, 1],
             }}
             transition={{
-              duration: 25,
+              duration: 3 + Math.random() * 4,
               repeat: Infinity,
-              ease: "linear"
+              delay: Math.random() * 2,
             }}
-            className="inline-block relative"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full blur-xl opacity-50 animate-pulse" />
-            <div className="relative w-40 h-40 md:w-48 md:h-48 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-indigo-500 p-[3px]">
-              <div className="w-full h-full rounded-full bg-[#050508] flex items-center justify-center">
-                <Camera size={60} md:size={70} className="text-purple-400" />
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
+          />
+        ))}
+      </div>
 
-        <motion.h1
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.1, type: "spring" }}
-          className="text-6xl md:text-8xl lg:text-[120px] font-bold mb-6 leading-tight"
-        >
-          <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent animate-gradient">
-            شادي حسين
-          </span>
-        </motion.h1>
-
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2, type: "spring" }}
-          className="text-2xl md:text-3xl lg:text-5xl text-gray-300 mb-6 font-light"
-        >
-          {content.tagline}
-        </motion.p>
-
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.3, type: "spring" }}
-          className="text-lg md:text-xl text-gray-400 mb-12 max-w-3xl mx-auto"
-        >
-          {content.description}
-        </motion.p>
-
-        {/* Features Section */}
+      {/* Main Content */}
+      <div className="relative z-10 min-h-screen flex flex-col justify-center items-center max-w-7xl mx-auto w-full px-4 py-8">
+        {/* Hero Section */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-          className="mb-16 grid grid-cols-1 md:grid-cols-3 gap-6"
+          transition={{ duration: 1 }}
+          className="text-center mb-12"
         >
-          {FEATURES.map((feature, i) => (
+          {/* Logo */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="mb-8"
+          >
+            <div className="relative inline-block">
+              <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-3xl bg-gradient-to-br from-purple-500 via-pink-500 to-rose-500 p-1 shadow-2xl shadow-purple-500/50">
+                <div className="w-full h-full rounded-3xl bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
+                  <Camera size={40} className="sm:size-48 text-white" />
+                </div>
+              </div>
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                className="absolute inset-0 -m-2"
+              >
+                <div className="w-full h-full border-2 border-purple-500/30 rounded-3xl" />
+              </motion.div>
+            </div>
+          </motion.div>
+
+          {/* Title */}
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            className="text-4xl sm:text-6xl lg:text-7xl font-black mb-4"
+          >
+            <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-rose-400 bg-clip-text text-transparent">
+              Shady Hussein
+            </span>
+          </motion.h1>
+
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.5 }}
+            className="text-xl sm:text-2xl text-slate-300 font-light mb-6"
+          >
+            استوديو تصوير احترافي
+          </motion.p>
+
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.6 }}
+            className="text-base sm:text-lg text-slate-400 max-w-2xl mx-auto mb-12"
+          >
+            نحول أجمل لحظاتك إلى ذكريات خالدة تصمد أمام الزمن
+          </motion.p>
+        </motion.div>
+
+        {/* Dynamic Feature Cards */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 0.7 }}
+          className="w-full max-w-4xl mb-12"
+        >
+          <div className="relative h-64 sm:h-80">
+            <AnimatePresence mode="wait">
+              {sections.map((section, index) => (
+                activeSection === index && (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, x: 50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -50 }}
+                    transition={{ duration: 0.5 }}
+                    className="absolute inset-0 flex items-center justify-center"
+                  >
+                    <motion.div
+                      whileHover={{ scale: 1.05 }}
+                      onClick={section.action}
+                      className="w-full max-w-md bg-gradient-to-br from-slate-900/80 to-purple-900/80 backdrop-blur-xl border border-purple-500/30 rounded-3xl p-8 cursor-pointer shadow-2xl shadow-purple-500/20 hover:shadow-purple-500/40 transition-all"
+                    >
+                      <div className="flex flex-col items-center text-center">
+                        <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${section.color} flex items-center justify-center mb-6 shadow-xl`}>
+                          <section.icon size={40} className="text-white" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-white mb-3">{section.title}</h3>
+                        <p className="text-slate-400 mb-6">{section.description}</p>
+                        <div className="flex items-center gap-2 text-purple-400">
+                          <span className="font-semibold">اكتشف المزيد</span>
+                          <ArrowRight size={20} />
+                        </div>
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                )
+              ))}
+            </AnimatePresence>
+
+            {/* Section Indicators */}
+            <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 flex gap-2">
+              {sections.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setActiveSection(index)}
+                  className={`w-3 h-3 rounded-full transition-all ${
+                    activeSection === index
+                      ? 'bg-purple-500 w-8'
+                      : 'bg-slate-600 hover:bg-slate-500'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Quick Actions */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 0.8 }}
+          className="flex flex-wrap justify-center gap-4 mb-8"
+        >
+          <motion.button
+            whileHover={{ scale: 1.05, y: -3 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => navigate('/contact')}
+            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl font-semibold shadow-lg shadow-orange-500/30 border border-white/20"
+          >
+            <Phone size={20} />
+            <span>تواصل معنا</span>
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05, y: -3 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => navigate('/unified-login')}
+            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-slate-700 to-slate-800 rounded-xl font-semibold shadow-lg shadow-slate-500/30 border border-white/20"
+          >
+            <Lock size={20} />
+            <span>الأدمن</span>
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05, y: -3 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setIsChatOpen(true)}
+            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl font-semibold shadow-lg shadow-purple-500/30 border border-white/20"
+          >
+            <MessageSquare size={20} />
+            <span>مساعد ذكي</span>
+          </motion.button>
+        </motion.div>
+
+        {/* Stats */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 0.9 }}
+          className="flex flex-wrap justify-center gap-8 sm:gap-16"
+        >
+          {[
+            { icon: Heart, label: "عماء سعداء", value: "500+" },
+            { icon: Award, label: "سنوات خبرة", value: "10+" },
+            { icon: Zap, label: "مشروع ناجح", value: "1000+" },
+          ].map((stat, index) => (
             <motion.div
-              key={feature.title}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.5 + i * 0.1 }}
-              whileHover={{ scale: 1.05, y: -10 }}
-              className="bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-xl border border-white/10 rounded-3xl p-6 hover:border-purple-500/50 transition-all duration-300"
+              key={index}
+              whileHover={{ scale: 1.1 }}
+              className="flex flex-col items-center gap-2"
             >
-              <feature.icon size={40} className="text-purple-400 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-white mb-2">{feature.title}</h3>
-              <p className="text-gray-400 text-sm">{feature.desc}</p>
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
+                <stat.icon size={24} className="text-purple-400" />
+              </div>
+              <div className="text-2xl font-bold text-white">{stat.value}</div>
+              <div className="text-sm text-slate-400">{stat.label}</div>
             </motion.div>
           ))}
         </motion.div>
-
-        {/* Live Gallery Preview */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.6 }}
-          className="mb-16"
-        >
-          <h2 className="text-2xl md:text-3xl font-bold mb-6 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-            معرض الصور الحي
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {GALLERY_IMAGES.map((img, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5, delay: 0.7 + i * 0.05 }}
-                whileHover={{ scale: 1.1, y: -10, rotate: 2 }}
-                className="aspect-square rounded-3xl overflow-hidden border-2 border-white/10 cursor-pointer hover:border-purple-500/50 transition-all duration-300 shadow-2xl"
-                onClick={() => navigate('/portfolio')}
-              >
-                <img
-                  src={img}
-                  alt={`Gallery ${i + 1}`}
-                  className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
-                />
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* Stats Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.8 }}
-          className="mb-16"
-        >
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {STATS.map((stat, i) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5, delay: 0.9 + i * 0.1 }}
-                whileHover={{ scale: 1.1, y: -5 }}
-                className={`bg-gradient-to-br ${stat.bg} backdrop-blur-xl border border-white/10 rounded-3xl p-6 hover:border-purple-500/50 transition-all duration-300`}
-              >
-                <stat.icon size={32} className={`${stat.color} mx-auto mb-3`} />
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ duration: 0.5, delay: 1.3 + i * 0.1, type: "spring" }}
-                  className="text-3xl md:text-4xl font-bold text-white mb-2"
-                >
-                  {stat.value}
-                </motion.div>
-                <p className="text-gray-400 text-sm">{stat.label}</p>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* CTA Buttons */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 1.4 }}
-          className="flex flex-col sm:flex-row gap-4 justify-center items-center"
-        >
-          <motion.button
-            whileHover={{ scale: 1.05, y: -5 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/book-now')}
-            className="px-8 py-4 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold text-lg shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 transition-all duration-300"
-          >
-            <Camera size={20} className="inline ml-2" />
-            احجز الآن
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.05, y: -5 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/portfolio')}
-            className="px-8 py-4 rounded-2xl bg-white/5 text-white font-semibold text-lg border border-white/10 hover:bg-white/10 hover:border-purple-500/50 transition-all duration-300"
-          >
-            <Eye size={20} className="inline ml-2" />
-            تصفح المعرض
-          </motion.button>
-        </motion.div>
       </div>
 
-      {/* Video Intro Section */}
-      <VideoIntro
-        title="اكتشف عالمنا"
-        description="شاهد الفيديو التعريفي عن استوديو التصوير الخاص بنا"
-      />
-
-      {/* Membership Section */}
-      <Membership />
-
-      {/* Gift Cards Section */}
-      <GiftCards />
-
-      {/* Instagram Feed Section */}
-      <InstagramFeed username="@shadyhussein" />
-
-      {/* Weather Widget Section */}
-      <WeatherWidget location="القاهرة" />
-
-      <div className="fixed bottom-0 left-0 right-0 bg-black/80 backdrop-blur-2xl border-t border-white/10 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-3">
-          <div className="flex justify-center gap-1 sm:gap-2">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => navigate('/')}
-              className="flex items-center gap-1 sm:gap-2 px-3 sm:px-6 py-2 sm:py-3 rounded-xl sm:rounded-2xl transition-all duration-300 bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30"
-            >
-              <Camera size={16} className="sm:size-20" />
-              <span className="font-semibold text-xs sm:text-sm hidden sm:block">الرئيسية</span>
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => navigate('/portfolio')}
-              className="flex items-center gap-1 sm:gap-2 px-3 sm:px-6 py-2 sm:py-3 rounded-xl sm:rounded-2xl transition-all duration-300 bg-white/5 text-gray-400 hover:bg-white/10"
-            >
-              <Eye size={16} className="sm:size-20" />
-              <span className="font-semibold text-xs sm:text-sm hidden sm:block">المعارض</span>
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => navigate('/packages')}
-              className="flex items-center gap-1 sm:gap-2 px-3 sm:px-6 py-2 sm:py-3 rounded-xl sm:rounded-2xl transition-all duration-300 bg-white/5 text-gray-400 hover:bg-white/10"
-            >
-              <Star size={16} className="sm:size-20" />
-              <span className="font-semibold text-xs sm:text-sm hidden sm:block">الباقات</span>
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => navigate('/contact')}
-              className="flex items-center gap-1 sm:gap-2 px-3 sm:px-6 py-2 sm:py-3 rounded-xl sm:rounded-2xl transition-all duration-300 bg-white/5 text-gray-400 hover:bg-white/10"
-            >
-              <Phone size={16} className="sm:size-20" />
-              <span className="font-semibold text-xs sm:text-sm hidden sm:block">تواصل</span>
-            </motion.button>
-          </div>
-        </div>
-      </div>
+      {/* AI Chat Component */}
+      <AIChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </div>
   );
 }
