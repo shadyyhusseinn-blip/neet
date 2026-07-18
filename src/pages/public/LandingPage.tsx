@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { Lock, Camera, MessageSquare, Sparkles, Calendar, Image, Package, User, TrendingUp, Award, Clock } from 'lucide-react';
+import { Lock, Camera, MessageSquare, Sparkles, Calendar, Image, Package, User, TrendingUp, Award, Clock, Phone } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { googleDriveService } from '../../services/googleDrive';
@@ -94,31 +94,8 @@ export default function LandingPage() {
     <div className="min-h-screen w-screen bg-slate-950 text-white font-['Cairo','Tajawal',sans-serif] relative overflow-hidden" dir="rtl">
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <motion.div
-          animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.3, 0.5, 0.3],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-          className="absolute top-1/4 right-1/4 w-96 h-96 bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-full blur-3xl"
-        />
-        <motion.div
-          animate={{
-            scale: [1, 1.3, 1],
-            opacity: [0.2, 0.4, 0.2],
-          }}
-          transition={{
-            duration: 10,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 2
-          }}
-          className="absolute bottom-1/4 left-1/4 w-80 h-80 bg-gradient-to-r from-blue-600/20 to-cyan-600/20 rounded-full blur-3xl"
-        />
+        <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/4 left-1/4 w-80 h-80 bg-gradient-to-r from-blue-600/20 to-cyan-600/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
       </div>
 
       {/* Install Prompt Modal */}
