@@ -2,12 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Crown, Users, Lock, Mail, User, ArrowLeft, Eye, EyeOff, Check, Camera, Code } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
-import { clientLogin } from '../../services/clientAuth';
 import { toast } from 'sonner';
 
 export default function UnifiedLoginPage() {
   const { signIn, signInStaff } = useAuthStore();
-  const [selectedPortal, setSelectedPortal] = useState<'admin' | 'staff' | 'client' | null>(null);
+  const [selectedPortal, setSelectedPortal] = useState<'admin' | 'staff' | null>(null);
   
   // Admin form state
   const [adminEmail, setAdminEmail] = useState('');
@@ -24,14 +23,6 @@ export default function UnifiedLoginPage() {
   const [staffLoading, setStaffLoading] = useState(false);
   const [staffError, setStaffError] = useState('');
   const [rememberStaff, setRememberStaff] = useState(false);
-
-  // Client form state
-  const [clientEmail, setClientEmail] = useState('');
-  const [clientPassword, setClientPassword] = useState('');
-  const [showClientPassword, setShowClientPassword] = useState(false);
-  const [clientLoading, setClientLoading] = useState(false);
-  const [clientError, setClientError] = useState('');
-  const [rememberClient, setRememberClient] = useState(false);
 
   // Load saved credentials on mount
   useEffect(() => {
@@ -53,16 +44,6 @@ export default function UnifiedLoginPage() {
       setStaffUsername(savedStaffUsername);
       setStaffPassword(savedStaffPassword);
       setRememberStaff(true);
-    }
-
-    const savedClientEmail = localStorage.getItem('client_email');
-    const savedClientPassword = localStorage.getItem('client_password');
-    const savedRememberClient = localStorage.getItem('client_remember');
-    
-    if (savedRememberClient === 'true' && savedClientEmail && savedClientPassword) {
-      setClientEmail(savedClientEmail);
-      setClientPassword(savedClientPassword);
-      setRememberClient(true);
     }
   }, []);
 
@@ -135,39 +116,6 @@ export default function UnifiedLoginPage() {
   const handleDeveloperLogin = (destination: string) => {
     toast.success('تم الدخول كالمطور ✅');
     window.location.href = destination;
-  };
-
-  const handleClientLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!clientEmail || !clientPassword) {
-      setClientError('يرجى إدخال البريد الإلكتروني وكلمة المرور');
-      return;
-    }
-
-    setClientLoading(true);
-    setClientError('');
-
-    try {
-      await clientLogin(clientEmail, clientPassword);
-      
-      // Save credentials if remember is checked
-      if (rememberClient) {
-        localStorage.setItem('client_email', clientEmail);
-        localStorage.setItem('client_password', clientPassword);
-        localStorage.setItem('client_remember', 'true');
-      } else {
-        localStorage.removeItem('client_email');
-        localStorage.removeItem('client_password');
-        localStorage.removeItem('client_remember');
-      }
-      
-      toast.success('تم تسجيل الدخول بنجاح ✅');
-      window.location.href = '/client-portal';
-    } catch (err: any) {
-      setClientError(err.message || 'فشل تسجيل الدخول');
-    } finally {
-      setClientLoading(false);
-    }
   };
 
   if (selectedPortal) {
@@ -331,7 +279,7 @@ export default function UnifiedLoginPage() {
                   <span>دخول المطور المباشر</span>
                 </motion.button>
               </form>
-            ) : selectedPortal === 'staff' ? (
+            ) : (
               <form onSubmit={handleStaffLogin} className="space-y-4 sm:space-y-6">
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">
@@ -416,97 +364,6 @@ export default function UnifiedLoginPage() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => handleDeveloperLogin('/adminstaff')}
-                  className="w-full py-2 sm:py-3 bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-xl font-medium hover:border-purple-500/50 transition-all flex items-center justify-center gap-2 text-sm sm:text-base text-purple-400"
-                >
-                  <Code size={16} />
-                  <span>دخول المطور المباشر</span>
-                </motion.button>
-              </form>
-            ) : (
-              <form onSubmit={handleClientLogin} className="space-y-4 sm:space-y-6">
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">
-                    البريد الإلكتروني
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input
-                      type="email"
-                      value={clientEmail}
-                      onChange={(e) => setClientEmail(e.target.value)}
-                      placeholder="client@example.com"
-                      className="w-full pr-10 pl-4 py-2 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-all text-sm sm:text-base"
-                      dir="ltr"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">
-                    كلمة المرور
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input
-                      type={showClientPassword ? 'text' : 'password'}
-                      value={clientPassword}
-                      onChange={(e) => setClientPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full pr-10 pl-12 py-2 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-all text-sm sm:text-base"
-                      dir="ltr"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowClientPassword(!showClientPassword)}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
-                    >
-                      {showClientPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </div>
-
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <div className="relative">
-                    <input
-                      type="checkbox"
-                      checked={rememberClient}
-                      onChange={(e) => setRememberClient(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-5 h-5 border-2 border-slate-600 rounded peer-checked:bg-amber-500 peer-checked:border-amber-500 transition-all flex items-center justify-center">
-                      {rememberClient && <Check size={12} className="text-white" />}
-                    </div>
-                  </div>
-                  <span className="text-xs sm:text-sm text-slate-400">تذكر بياناتي</span>
-                </label>
-
-                {clientError && (
-                  <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-2 sm:p-3 text-red-400 text-xs sm:text-sm">
-                    {clientError}
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={clientLoading}
-                  className="w-full py-2 sm:py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-medium hover:from-amber-600 hover:to-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm sm:text-base"
-                >
-                  {clientLoading ? (
-                    <>
-                      <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      <span>جاري تسجيل الدخول...</span>
-                    </>
-                  ) : (
-                    <span>تسجيل الدخول</span>
-                  )}
-                </button>
-
-                {/* Developer Quick Access */}
-                <motion.button
-                  type="button"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleDeveloperLogin('/client-portal')}
                   className="w-full py-2 sm:py-3 bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-xl font-medium hover:border-purple-500/50 transition-all flex items-center justify-center gap-2 text-sm sm:text-base text-purple-400"
                 >
                   <Code size={16} />
@@ -598,26 +455,6 @@ export default function UnifiedLoginPage() {
               <h3 className="text-lg sm:text-2xl font-bold text-white mb-2 sm:mb-3">بوابة الموظفين</h3>
               <p className="text-slate-400 text-xs sm:text-base mb-4 sm:mb-6">الدخول للوحة تحكم الموظفين والمهام المخصصة</p>
               <div className="flex items-center gap-2 text-white font-medium bg-gradient-to-r from-emerald-500 to-teal-500 px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-base shadow-lg shadow-emerald-500/20">
-                <span>الدخول</span>
-                <ArrowLeft size={16} />
-              </div>
-            </div>
-          </motion.button>
-
-          {/* Client Portal */}
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setSelectedPortal('client')}
-            className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl md:rounded-3xl p-6 md:p-8 hover:border-amber-500/30 transition-all duration-300 text-right cursor-pointer shadow-xl"
-          >
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center mb-4 sm:mb-6 shadow-lg shadow-amber-500/30">
-                <Camera size={28} className="text-white" />
-              </div>
-              <h3 className="text-lg sm:text-2xl font-bold text-white mb-2 sm:mb-3">بوابة العملاء</h3>
-              <p className="text-slate-400 text-xs sm:text-base mb-4 sm:mb-6">الدخول للوصول إلى معرض الصور والخدمات</p>
-              <div className="flex items-center gap-2 text-white font-medium bg-gradient-to-r from-amber-500 to-orange-500 px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-base shadow-lg shadow-amber-500/20">
                 <span>الدخول</span>
                 <ArrowLeft size={16} />
               </div>

@@ -126,12 +126,8 @@ const UserManagement = lazy(() => import('./pages/admin/UserManagement'));
 const StaffDashboard = lazy(() => import('./pages/staff/StaffDashboard'));
 const StaffBookingRecords = lazy(() => import('./pages/staff/StaffBookingRecords'));
 
-// Client pages
-const ClientPortal = lazy(() => import('./pages/client/ClientPortal'));
-
 // Client Manager pages
 const ClientManagerPortalDashboard = lazy(() => import('./pages/client-manager/ClientManagerPortalDashboard'));
-const ClientManagement = lazy(() => import('./pages/client-manager/ClientManagement'));
 
 // Public pages
 const LandingPage = lazy(() => import('./pages/public/LandingPage'));
@@ -309,9 +305,7 @@ function AppContent() {
     else if (currentPath === '/admin-general/storage-dashboard') view = 'storage-dashboard';
     else if (currentPath === '/admin-general/whatsapp-alerts') view = 'whatsapp-alerts';
     else if (currentPath === '/admin-general/user-management') view = 'user-management';
-    else if (currentPath === '/client-portal') view = 'client-portal';
     else if (currentPath === '/client-manager/dashboard') view = 'client-manager-dashboard';
-    else if (currentPath === '/client-manager/clients') view = 'client-management';
     else if (currentPath === '/privacy-policy') view = 'privacy-policy';
     else if (currentPath === '/terms-of-service') view = 'terms-of-service';
     else if (currentPath.match(/^\/admin-general\/gallerieseditor\/edit\/[^/]+$/)) {
@@ -410,12 +404,8 @@ function AppContent() {
         return <WhatsAppAlerts />;
       case 'user-management':
         return <UserManagement />;
-      case 'client-portal':
-        return <ClientPortal />;
       case 'client-manager-dashboard':
         return <ClientManagerPortalDashboard />;
-      case 'client-management':
-        return <ClientManagement />;
       case 'privacy-policy':
         return <PrivacyPolicy />;
       case 'terms-of-service':

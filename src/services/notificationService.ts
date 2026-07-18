@@ -235,7 +235,7 @@ class NotificationService {
           message: `تم تأكيد حجزك في ${booking.date}. شكراً لاختيارك خدماتنا!`,
           read: false,
           createdAt: new Date().toISOString(),
-          actionUrl: '/client-portal',
+          actionUrl: '/portfolio',
           metadata: { bookingId: booking.id }
         };
 
