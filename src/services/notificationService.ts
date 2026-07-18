@@ -1,6 +1,8 @@
 import { Booking } from '../types';
 import { firestoreData } from './firestoreData';
 import { storage } from './storage';
+import { firebaseService } from './firebase';
+import { doc, setDoc, collection } from 'firebase/firestore';
 
 interface NotificationConfig {
   adminPhone: string;
@@ -34,7 +36,15 @@ class NotificationService {
         smsProvider: 'firebase'
       };
     }
-    return this.config;
+    return this.config || {
+      notificationsEnabled: false,
+      adminPhone: '',
+      bookingReminderEnabled: true,
+      bookingReminderHours: 24,
+      paymentReminderEnabled: true,
+      paymentReminderDays: 3,
+      smsProvider: 'firebase'
+    };
   }
 
   startChecking() {
@@ -159,7 +169,7 @@ class NotificationService {
     }
   }
 
-  private async sendViaTwilio(to: string, message: string, config: NotificationConfig) {
+  private async sendViaTwilio(_to: string, _message: string, config: NotificationConfig) {
     if (!config.twilioAccountSid || !config.twilioAuthToken || !config.twilioPhoneNumber) {
       console.error('❌ Twilio credentials not configured');
       return;
@@ -195,6 +205,92 @@ class NotificationService {
     } catch (error) {
       console.error('❌ Error sending test SMS:', error);
       return false;
+    }
+  }
+
+  async sendBookingNotification(booking: Booking, userId?: string): Promise<void> {
+    try {
+      const db = firebaseService.getDB();
+      
+      // Send to admin (all admin users would receive this in a real implementation)
+      const adminNotification = {
+        userId: 'admin',
+        type: 'booking' as const,
+        title: 'حجز جديد',
+        message: `حجز جديد للعميل ${booking.clientName} في ${booking.date}`,
+        read: false,
+        createdAt: new Date().toISOString(),
+        actionUrl: `/admin-general/bookings-hub/details/${booking.id}`,
+        metadata: { bookingId: booking.id }
+      };
+
+      await setDoc(doc(collection(db, 'notifications'), Date.now().toString()), adminNotification);
+
+      // If client has a user account, send notification to them too
+      if (userId) {
+        const clientNotification = {
+          userId,
+          type: 'booking' as const,
+          title: 'تم تأكيد حجزك',
+          message: `تم تأكيد حجزك في ${booking.date}. شكراً لاختيارك خدماتنا!`,
+          read: false,
+          createdAt: new Date().toISOString(),
+          actionUrl: '/client-portal',
+          metadata: { bookingId: booking.id }
+        };
+
+        await setDoc(doc(collection(db, 'notifications'), `${Date.now()}_client`), clientNotification);
+      }
+
+      console.log('✅ Booking notification sent');
+    } catch (error) {
+      console.error('❌ Error sending booking notification:', error);
+    }
+  }
+
+  async sendPaymentNotification(booking: Booking, userId?: string): Promise<void> {
+    try {
+      const db = firebaseService.getDB();
+      
+      const notification = {
+        userId: userId || 'admin',
+        type: 'payment' as const,
+        title: 'دفعة جديدة',
+        message: `تم استلام دفعة ${booking.paidAmount} ج.م من ${booking.clientName}`,
+        read: false,
+        createdAt: new Date().toISOString(),
+        actionUrl: `/admin-general/bookings-hub/details/${booking.id}`,
+        metadata: { bookingId: booking.id }
+      };
+
+      await setDoc(doc(collection(db, 'notifications'), Date.now().toString()), notification);
+      console.log('✅ Payment notification sent');
+    } catch (error) {
+      console.error('❌ Error sending payment notification:', error);
+    }
+  }
+
+  async sendGalleryNotification(galleryId: string, _clientName: string, userId?: string): Promise<void> {
+    try {
+      const db = firebaseService.getDB();
+      
+      if (userId) {
+        const notification = {
+          userId,
+          type: 'gallery' as const,
+          title: 'معرض جاهز',
+          message: `تم رفع معرض صورك! يمكنك الآن مشاهدته وتحميل الصور.`,
+          read: false,
+          createdAt: new Date().toISOString(),
+          actionUrl: `/portfolio/${galleryId}`,
+          metadata: { galleryId }
+        };
+
+        await setDoc(doc(collection(db, 'notifications'), Date.now().toString()), notification);
+        console.log('✅ Gallery notification sent');
+      }
+    } catch (error) {
+      console.error('❌ Error sending gallery notification:', error);
     }
   }
 }

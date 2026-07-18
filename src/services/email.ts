@@ -14,7 +14,7 @@ export interface EmailRequest {
   cc?: string[];
   bcc?: string[];
   subject: string;
-  body: string;
+  body?: string;
   templateId?: string;
   templateData?: Record<string, any>;
   attachments?: File[];
